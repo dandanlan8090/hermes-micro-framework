@@ -63,7 +63,7 @@ hermes profile list   # ◆ 标记当前活跃 profile
 
 ## 目录结构
 
-```
+```text
 hermes-micro-framework/
 ├── install.sh              # 一键部署（新装全量 / 存量仅补技能和工具链）
 ├── README.md
@@ -74,7 +74,8 @@ hermes-micro-framework/
 ├── .env.example            # → ~/.hermes/.env（如果不存在）
 │
 ├── memories/
-│   └── USER.md             # → ~/.hermes/memories/USER.md（存量不覆盖）
+│   ├── USER.md             # → ~/.hermes/memories/USER.md（存量不覆盖）
+│   └── FRAMEWORK_EVOLUTION.md
 │
 ├── vdb/                    # 技能检索系统工具链
 │   ├── sparse.py           # 中文/英文 token 分词 + lexical weights
@@ -87,44 +88,62 @@ hermes-micro-framework/
 │   ├── init-vdb.sh         # 虚拟环境 + 依赖 + API Key + 索引构建
 │   └── vdb-autoload.py     # 启动预热 + 索引过期检测 + 自动重建
 │
-└── skills/                 # 架构核心技能集
-    ├── NEW_SKILL_TEMPLATE.md
-    ├── plan/
-    ├── ai-conv-style-discipline/
-    ├── codebase-memory-first/
-    ├── code-review-and-audit/
-    ├── debugging-patterns/
-    ├── doubt-driven-development/
-    ├── hermes-agent/
-    ├── hermes-agent-skill-authoring/
-    ├── hermes-base-config-sync/
-    ├── hermes-code-output/
-    ├── hermes-evolution-rules/
-    ├── hermes-fault-troubleshooting/
-    ├── hermes-framework-architecture/
-    ├── hermes-framework-loader/
-    ├── hermes-git-worktree/
-    ├── hermes-knowledge-base/
-    ├── hermes-oracle-mode/
-    ├── hermes-parallel-dispatch/
-    ├── hermes-plan-workflow/
-    ├── hermes-safety/
-    ├── hermes-shipping-verification/
-    ├── hermes-tdd-workflow/
-    ├── hermes-todo-progress/
-    ├── hermes-truth-redline/
-    ├── hermes-verification-rules/
-    ├── repo-publishing-workflow/
-    ├── source-driven-development/
-    ├── system-admin/
-    ├── vdb-retrieval-pipeline/
-    ├── core/
-    │   └── hermes-focus-scope/
-    ├── infrastructure/
-    │   └── hermes-framework-troubleshooting/
-    └── methodology/
-        ├── hermes-framework-evolution/
-        └── hermes-framework-changelog/
+└── skills/                 # 按职责分类组织
+    ├── core/               # 铁律细则（与 SOUL.md 铁律一一对应）
+    │   ├── hermes-truth-redline/
+    │   ├── hermes-code-output/
+    │   ├── hermes-verification-rules/
+    │   ├── hermes-safety/
+    │   ├── hermes-evolution-rules/
+    │   ├── hermes-boundary-no-future-planning/
+    │   ├── hermes-boundary-no-task-prediction/
+    │   ├── hermes-boundary-no-over-reasoning/
+    │   └── hermes-boundary-no-scope-creep/
+    │
+    ├── workflow/           # 高频多步骤工作流
+    │   ├── hermes-oracle-mode/
+    │   ├── hermes-plan-workflow/
+    │   ├── hermes-tdd-workflow/
+    │   ├── hermes-shipping-verification/
+    │   ├── hermes-parallel-dispatch/
+    │   ├── hermes-git-worktree/
+    │   ├── hermes-fault-troubleshooting/
+    │   ├── repo-publishing-workflow/
+    │   └── agent-collaboration-workflow/
+    │
+    ├── methodology/        # 思维框架和原则
+    │   ├── source-driven-development/
+    │   ├── doubt-driven-development/
+    │   ├── code-review-and-audit/
+    │   ├── debugging-patterns/
+    │   ├── codebase-memory-first/
+    │   ├── ai-conv-style-discipline/
+    │   ├── hermes-knowledge-base/
+    │   ├── hermes-todo-progress/
+    │   ├── hermes-agent-skill-authoring/
+    │   ├── hermes-framework-evolution/
+    │   ├── code-simplification/
+    │   ├── plan/
+    │   └── openai-compat-thinking/
+    │
+    ├── infrastructure/     # 框架自身运行机制
+    │   ├── vdb-retrieval-pipeline/
+    │   ├── hermes-framework-loader/
+    │   ├── hermes-framework-architecture/
+    │   ├── hermes-framework-troubleshooting/
+    │   ├── hermes-framework-changelog/
+    │   ├── autoload-vdb/
+    │   ├── codebase-memory-mcp/
+    │   └── hermes-self-optimization/
+    │
+    ├── integration/        # 外部系统集成
+    │   ├── hermes-agent/
+    │   ├── hermes-base-config-sync/
+    │   ├── system-admin/
+    │   └── github/
+    │
+    └── templates/          # 模板
+        └── NEW_SKILL_TEMPLATE.md
 ```
 
 ---
@@ -217,7 +236,10 @@ bash install.sh --force
 | `hermes-truth-redline` | methodology | 信息真实性红线 |
 | `hermes-safety` | methodology | 安全约束规范 |
 | `hermes-evolution-rules` | methodology | 自身进化规则 |
-| `hermes-focus-scope` | methodology | 思考范围约束细则 |
+| `hermes-boundary-no-future-planning` | methodology | 不提前规划后续对话 |
+| `hermes-boundary-no-task-prediction` | methodology | 不预判后续任务 |
+| `hermes-boundary-no-over-reasoning` | methodology | 不过度推演 |
+| `hermes-boundary-no-scope-creep` | methodology | 不自行拓展场景 |
 | `hermes-framework-troubleshooting` | workflow | 框架故障诊断与修复 |
 | `hermes-framework-evolution` | methodology | 框架演进方法论 |
 | `hermes-framework-changelog` | methodology | 框架变更审计日志 |

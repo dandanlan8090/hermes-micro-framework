@@ -120,23 +120,29 @@ if [ -d "$REPO_DIR/skills" ]; then
     if $IS_NEW || $FORCE; then
         do_cp "$REPO_DIR/skills/" "$HERMES_DIR/skills/" "skills/（全量）"
     else
-        # 只补充不覆盖
-        for skill_dir in "$REPO_DIR/skills"/*/; do
-            name=$(basename "$skill_dir")
-            target="$HERMES_DIR/skills/$name"
-            if [ ! -d "$target" ]; then
-                do_cp "$skill_dir" "$target" "skills/$name（新增）"
-            else
-                echo "  - skills/$name 已存在，跳过"
-            fi
+        # 遍历分类子目录（core/workflow/methodology/infrastructure/integration）
+        for cat_dir in "$REPO_DIR/skills"/*/; do
+            cat_name=$(basename "$cat_dir")
+            # 跳过 templates（作为单文件处理）
+            [ "$cat_name" = "templates" ] && continue
+            for skill_dir in "$cat_dir"*/; do
+                [ -d "$skill_dir" ] || continue
+                name=$(basename "$skill_dir")
+                target="$HERMES_DIR/skills/$name"
+                if [ ! -d "$target" ]; then
+                    do_cp "$skill_dir" "$target" "skills/$name（${cat_name}，新增）"
+                else
+                    echo "  - skills/$name 已存在，跳过"
+                fi
+            done
         done
-        # 根目录 .md 技能文件
-        for skill_file in "$REPO_DIR/skills"/*.md; do
-            [ -f "$skill_file" ] || continue
-            name=$(basename "$skill_file")
+        # 处理 templates/ 下的单文件
+        for f in "$REPO_DIR/skills/templates"/*.md; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f")
             target="$HERMES_DIR/skills/$name"
             if [ ! -f "$target" ]; then
-                do_cp "$skill_file" "$target" "skills/$name（新增）"
+                do_cp "$f" "$target" "skills/$name（新增）"
             else
                 echo "  - skills/$name 已存在，跳过"
             fi
