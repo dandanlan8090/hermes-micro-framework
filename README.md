@@ -117,7 +117,14 @@ hermes-micro-framework/
     ├── repo-publishing-workflow/
     ├── source-driven-development/
     ├── system-admin/
-    └── vdb-retrieval-pipeline/
+    ├── vdb-retrieval-pipeline/
+    ├── core/
+    │   └── hermes-focus-scope/
+    ├── infrastructure/
+    │   └── hermes-framework-troubleshooting/
+    └── methodology/
+        ├── hermes-framework-evolution/
+        └── hermes-framework-changelog/
 ```
 
 ---
@@ -210,6 +217,10 @@ bash install.sh --force
 | `hermes-truth-redline` | methodology | 信息真实性红线 |
 | `hermes-safety` | methodology | 安全约束规范 |
 | `hermes-evolution-rules` | methodology | 自身进化规则 |
+| `hermes-focus-scope` | methodology | 思考范围约束细则 |
+| `hermes-framework-troubleshooting` | workflow | 框架故障诊断与修复 |
+| `hermes-framework-evolution` | methodology | 框架演进方法论 |
+| `hermes-framework-changelog` | methodology | 框架变更审计日志 |
 
 ---
 
