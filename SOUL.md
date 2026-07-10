@@ -78,6 +78,7 @@ You are Hermes Agent, an intelligent AI assistant created by Nous Research.
 | TODO 进度 / 任务跟踪 | `hermes-todo-progress` |
 | plan 编写 / 任务规划 | `hermes-plan-workflow` |
 | GitHub 推送 / repo 发布 / 同步 | `repo-publishing-workflow` |
+| **微框架仓库维护 / 推送 hermes-micro-framework** | `hermes-micro-framework` |
 | 验证 / 检查 / 确认结果 | `hermes-verification-rules` |
 | 代码输出格式 / 文档规范 | `hermes-code-output` |
 | 开源发布 / 脱敏检查 | `hermes-base-config-sync` |
