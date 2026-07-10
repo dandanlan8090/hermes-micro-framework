@@ -231,7 +231,7 @@ PYTHONPATH=$PWD python3 -c "from matcher import search; [print(r['skill_name'], 
 | `hermes-boundary-no-over-reasoning` | 不过度推演 | 思考链过长 |
 | `hermes-boundary-no-scope-creep` | 不拓展场景 | agent 主动给额外建议 |
 
-### workflow/ — 工作流（9 个）
+### workflow/ — 工作流（10 个）
 
 | 技能 | 说明 |
 |------|------|
@@ -240,19 +240,20 @@ PYTHONPATH=$PWD python3 -c "from matcher import search; [print(r['skill_name'], 
 | `hermes-tdd-workflow` | TDD 测试驱动 |
 | `hermes-shipping-verification` | 发布验证 + 回滚 |
 | `hermes-parallel-dispatch` | 并行 Agent 派发 |
-| `hermes-git-worktree` | Git 分支隔离 |
+| `hermes-git-worktree` | Git 工作流 + worktree 隔离 |
 | `hermes-fault-troubleshooting` | 系统故障处理 |
 | `repo-publishing-workflow` | 仓库发布与同步 |
 | `agent-collaboration-workflow` | 三 Agent 协作 |
+| `ci-cd-and-automation` | CI/CD pipeline 自动化 |
 
-### methodology/ — 思维框架（13 个）
+### methodology/ — 思维框架（19 个）
 
 | 技能 | 说明 |
 |------|------|
 | `source-driven-development` | 源码驱动开发 |
 | `doubt-driven-development` | 怀疑驱动审查 |
 | `code-review-and-audit` | 代码审查 |
-| `debugging-patterns` | 交互式调试 |
+| `debugging-patterns` | 交互式调试 + 生产问题排查 |
 | `codebase-memory-first` | 代码知识图谱 |
 | `ai-conv-style-discipline` | CLI 对话风格 |
 | `hermes-knowledge-base` | 知识库整理 |
@@ -262,6 +263,11 @@ PYTHONPATH=$PWD python3 -c "from matcher import search; [print(r['skill_name'], 
 | `code-simplification` | 代码简化 |
 | `plan` | Plan Mode |
 | `openai-compat-thinking` | 推理链思考 |
+| `performance-optimization` | 性能优化（前端/后端/数据库） |
+| `spec-driven-development` | Spec 先行开发 |
+| `deprecation-and-migration` | 废弃与迁移管理 |
+| `incremental-implementation` | 增量实现（垂直切片） |
+| `api-and-interface-design` | API 设计规范 |
 
 ### infrastructure/ — 框架机制（8 个）
 

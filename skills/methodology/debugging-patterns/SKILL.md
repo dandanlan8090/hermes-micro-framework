@@ -1,11 +1,10 @@
 ---
 name: debugging-patterns
-description: 'Interactive code debugging patterns — Python (pdb/debugpy) and Node.js
-  (inspect/CDP). Class-level guidance for choosing, setting up, and effective breakpoint-driven
-  debugging across both ecosystems. 按 Systematic Debugging 四阶段排查错误（根因→模式→假设→实现）。
-  禁用：纯运维故障（见 hermes-fault-troubleshooting）、无需调试的代码审查。'
-version: 1.0.1
-author: Hermes Agent (CURATOR umbrella consolidation)
+description: >
+  Interactive code debugging — Python (pdb/debugpy) and Node.js (inspect/CDP). Systematic 5-step debugging process: Reproduce → Localize → Reduce → Fix Root Cause → Guard. Also covers flaky test diagnosis and git bisect.
+  Not for pure ops failures (see hermes-fault-troubleshooting) or code review without debugging.
+version: 1.2.0
+author: Hermes Agent
 license: MIT
 platforms:
 - linux
@@ -26,110 +25,150 @@ metadata:
       - 异常
       - 定位问题
       - 代码报错
-      - 哪里错了
-      - debugpy
       - 断点调试
+      - git bisect
+      - 复现bug
+      - 性能问题排查
+      - flaky test
       disable:
       - 运维故障
       - 服务挂了
       - 配置错误
       - 网络问题
       - 纯文档审查
+      - 部署问题
     skill_type: methodology
     priority: high
     related_skills:
     - hermes-fault-troubleshooting
     - source-driven-development
+    - hermes-tdd-workflow
+prerequisites:
+  commands:
+  - terminal
+  - read_file
 ---
-# Debugging Patterns — Class-Level Guidance
+# Systematic Debugging
 
-## Systematic Debugging 四阶段
+## Iron Law
+Never fix without finding root cause. Symptom fixes = failure.
 
-### Iron Law
-不查根因禁止修。症状修复 = 失败。
+## The 5-Step Debugging Process
 
-### Phase 1: Root Cause
-读错 → 复现 → 看最近变更 → 多组件逐层插桩 → 数据流反向追溯
+### Step 1: Reproduce (Replicate the Failure)
 
-### Phase 2: Pattern Analysis
-找 working example，对比差异，读完参考实现再动手
+Before diagnosing, confirm you can reproduce the failure reliably:
 
-### Phase 3: Hypothesis + Test
-单一假设、最小改动、一个变量
+- Run the failing command/code again — is it consistent?
+- Note exact error message, stack trace, and input
+- Save reproduction log: `command 2>&1 | tee /tmp/repro.log`
+- For flaky failures, run 3-5 times to gauge frequency
 
-### Phase 4: Implementation
-先写 failing test / failing 复现脚本 → 修 → 验证回归
+**Flaky failures** (intermittent, non-deterministic):
 
-### 3 次失败停止
-同一问题累计 3 次修复失败 → 停止，问架构，不继续打补丁：
-是否架构本身错？是否应该重写模块？是否 YAGNI 被违反？
-
-### 一行复现
-```bash
-bash -c '原命令' 2>&1 | tee /tmp/repro.log
 ```
-看到原始报错 → 留着不删，作为 disclosed symptom。
+Flaky checklist:
+├── Race condition?  → Check shared state, async ordering
+├── Environment-dependent? → Compare versions, OS, env vars
+├── State-dependent? → Check leaked state, global variables
+└── Truly random?    → Defensive logging, document conditions
+```
+
+**For flaky test failures:**
+```bash
+npm test -- --grep "test name"          # Run specific test
+npm test -- --runInBand                  # Run in isolation (rules out test pollution)
+```
+
+### Step 2: Localize (Narrow Down Location)
+
+Identify which layer is failing:
+
+```
+├── UI/Frontend     → Console, DOM, network tab
+├── API/Backend     → Server logs, request/response
+├── Database        → Queries, schema, data integrity
+├── Build tooling   → Config, dependencies, environment
+└── External service → Connectivity, API changes, rate limits
+```
+
+**Use git bisect for regression bugs:**
+```bash
+git bisect start
+git bisect bad                    # Current commit is broken
+git bisect good <known-good-sha>  # This commit worked
+git bisect run npm test -- --grep "failing test"
+```
+
+### Step 3: Reduce (Create Minimal Reproduction)
+
+Remove unrelated code/config until only the bug remains:
+
+- Simplify input to smallest example that triggers the failure
+- Strip to bare minimum that reproduces the issue
+- A minimal reproduction makes root cause obvious
+
+### Step 4: Fix the Root Cause (Not the Symptom)
+
+```
+Symptom: "User list shows duplicate entries"
+
+Symptom fix (bad): Deduplicate in UI: [...new Set(users)]
+Root cause fix (good): The API JOIN produces duplicates → fix query, add DISTINCT
+```
+
+Ask "Why?" until you reach the actual cause, not just where it manifests.
+
+### Step 5: Guard Against Recurrence
+
+Write a test that catches this specific failure. Integration test > unit test > manual check.
 
 ---
 
 ## Python Debugging (pdb / debugpy)
 
-### Quick Start
-
 ```bash
-# pdb — drop into script
+# pdb
 python -m pdb script.py
 
-# debugpy — attach to running process
+# debugpy
 python -m debugpy --listen 5678 --wait-for-client script.py
 ```
 
-### Recommended Workflow
-
+**Workflow:**
 1. Set breakpoint: `breakpoint()` or `import pdb; pdb.set_trace()`
 2. Run until breakpoint
 3. Inspect: `p variable`, `locals()`, `dir(obj)`
 4. Step: `n` (next), `s` (step into), `c` (continue)
-5. Evaluate: `!expression`
 
-### Conditional Breakpoints
-
+**Conditional breakpoints:**
 ```python
-# In code
 breakpoint() if condition else None
-
-# In pdb
-b 42, x > 10
+# In pdb:  b 42, x > 10
 ```
 
 ## Node.js Debugging (inspect / CDP)
 
-### Quick Start
-
 ```bash
-# Built-in inspector
 node --inspect script.js
-node --inspect-brk script.js  # pause at start
-
-# Chrome DevTools Protocol
-node --inspect=0.0.0.0:9229 script.js
+node --inspect-brk script.js  # Pause at start
 ```
 
-### Debugging with CDP
-
-```javascript
-// chrome://inspect in browser
-// or use v8-inspector directly
-const inspector = require('node:inspector');
-inspector.open(9229, '0.0.0.0', true);
-```
-
-## Choosing the Right Tool
+## Tool Selection
 
 | Situation | Tool |
 |-----------|------|
-| Quick script, no deps | pdb |
-| Complex app, remote debugging | debugpy |
+| Quick script | pdb |
+| Complex app, remote | debugpy |
 | Node.js backend | inspect / CDP |
 | CI/debugging tests | pytest --pdb or --trace |
 | Post-mortem | python -m pdb -c c core.dump |
+| Regression search | git bisect |
+
+## 3-Strike Rule
+
+Same issue fails to fix 3 times → Stop. Ask if architecture is wrong, if module should be rewritten, if YAGNI was violated.
+
+---
+
+**Reference:** https://github.com/addyosmani/agent-skills

@@ -1,11 +1,11 @@
 ---
 name: hermes-tdd-workflow
-description: 'TDD 工作流：生产代码必须先有 failing test 验证失败再写实现再验证通过。
-  Use when writing Python/Rust/Go code, creating 30+ line scripts, implementing reusable tools,
-  or any code that will be executed multiple times.
-  禁用：单行脚本(<10行)、仅配置变更(yaml/conf/env)、文档编写、一次性 throwaway 探查。'
-version: 1.0.0
-author: Hermes
+description: >
+  TDD 工作流：先写 failing test 验证失败 → 写实现 → 验证通过。Covers RED/GREEN/REFACTOR cycle, Prove-It Pattern for bugs, Test Pyramid guidance.
+  Use when implementing new features, fixing bugs, adding edge cases, or modifying existing functionality.
+  Not for pure config changes, documentation updates, or static content.
+version: 1.1.0
+author: Hermes Agent
 license: MIT
 platforms:
 - linux
@@ -23,52 +23,146 @@ metadata:
       - 先写测试
       - 测试先行
       - 写测试
-      - 代码测试
       - 自动化测试
       - test-driven
-      - red-green
+      - red-green-refactor
+      - bug fix
+      - 复现bug
+      - regression
+      - prove-it pattern
       disable:
+      - 纯配置变更
+      - 文档更新
+      - 静态内容
       - 单行脚本
-      - 配置变更
-      - 文档
-      - throwaway
+      - 一次性探查
     skill_type: methodology
     priority: normal
+    related_skills:
+    - debugging-patterns
+    - source-driven-development
+    - code-review-and-audit
+prerequisites:
+  commands:
+  - terminal
+  - read_file
+  - patch
 ---
-# TDD 工作流
+# Test-Driven Development (TDD)
 
-## 核心原则
+## Overview
 
-生产代码 → 必须先有 failing test 验证它失败 → 再写 → 验证它通过。
+Write a failing test before writing the code that makes it pass. For bug fixes, reproduce the bug with a test before attempting a fix. Tests are proof — "seems right" is not done.
 
-## 例外清单（运维场景）
+## When to Use
 
-不强制 TDD，但保留 verification-before-completion：
+- Implementing any new logic or behavior
+- Fixing any bug (the Prove-It Pattern)
+- Modifying existing functionality
+- Adding edge case handling
+- Any change that could break existing behavior
 
-- 单行/单步 bash 脚本（< 10 行）
-- 仅配置变更（yaml / conf / env）
-- 文档（Markdown / txt）
-- 一次性 throwaway 探查
+**When NOT to use:** Pure configuration changes, documentation updates, or static content changes with no behavioral impact. One-line throwaway scripts.
 
-## 必须 TDD 的场景
+---
 
-- 长脚本（> 30 行）
-- 多 shell 步骤跨多文件
-- 任何 Python / Go / Rust 实现
-- 任何会被多次调用的工具
+## The TDD Cycle
 
-## 框架自动检测
+```
+    RED                GREEN              REFACTOR
+ Write a test    Write minimal code    Clean up the
+ that fails  ──→  to make it pass  ──→  implementation  ──→  (repeat)
+      │                  │                    │
+      ▼                  ▼                    ▼
+   Test FAILS        Test PASSES         Tests still PASS
+```
 
-| 检测条件 | 框架 |
-|---------|------|
-| pyproject.toml 存在 | pytest |
-| package.json 存在 | npm test |
-| go.mod 存在 | go test |
-| Cargo.toml 存在 | cargo test |
-| *.bats 文件 | bats |
-| 以上均不匹配 | pytest fallback |
+### Step 1: RED — Write a Failing Test
 
-## Sunk Cost 红律
+Write the test first. It must fail. A test that passes immediately proves nothing.
 
-已写代码无测试 → 删，重写。不保留为参考，不借鉴。
-沉没成本不是节省时间的理由。
+```python
+# RED: This test fails because create_task doesn't exist yet
+def test_create_task():
+    task = task_service.create_task(title="Buy groceries")
+    assert task.id is not None
+    assert task.title == "Buy groceries"
+    assert task.status == "pending"
+```
+
+### Step 2: GREEN — Make It Pass
+
+Write the minimum code to make the test pass:
+
+```python
+# GREEN: Minimal implementation
+def create_task(title: str) -> Task:
+    return Task(id=generate_id(), title=title, status="pending", created_at=datetime.now())
+```
+
+### Step 3: REFACTOR — Clean Up
+
+With tests green, improve the code without changing behavior: extract shared logic, improve naming, remove duplication. Run tests after every refactor step.
+
+---
+
+## The Prove-It Pattern (Bug Fixes)
+
+Bug reported → Write reproduction test → Test FAILS (bug confirmed) → Fix → Test PASSES (fix proven) → Full suite (no regressions).
+
+```python
+# Bug: "Completing task doesn't set completedAt"
+# Step 1: Reproduction test (FAILS)
+def test_completed_task_has_timestamp():
+    completed = task_service.complete_task("test-id")
+    assert completed.completed_at is not None  # Fails → bug confirmed
+
+# Step 2: Fix
+def complete_task(id: str) -> Task:
+    return db.tasks.update(id, {"status": "completed", "completed_at": datetime.now()})
+
+# Step 3: Test PASSES → fixed, guarded
+```
+
+---
+
+## The Test Pyramid
+
+```
+          /\           E2E (~5%) — Full user flows
+         /  \
+        /────\
+       /      \       Integration (~15%) — API boundaries
+      /────────\
+     /          \     Unit (~80%) — Pure logic, milliseconds
+    /────────────\
+```
+
+### Test Sizes
+
+| Size | Constraints | Speed |
+|------|------------|-------|
+| Small | Single process, no I/O | ms |
+| Medium | localhost only | s |
+| Large | External services | min |
+
+---
+
+## Framework Detection
+
+| Condition | Framework |
+|-----------|-----------|
+| `pyproject.toml` | pytest |
+| `package.json` | npm test |
+| `go.mod` | go test |
+| `Cargo.toml` | cargo test |
+
+---
+
+## Sunk Cost Red Rule
+
+Code without tests → delete, rewrite. Do not keep as reference.
+
+---
+
+**Reference:** https://github.com/addyosmani/agent-skills
