@@ -1,7 +1,7 @@
 ---
 name: hermes-micro-framework
 description: Hermes Micro Framework 仓库维护技能——记录 repo 推送规则、脱敏标准、目录结构和更新工作流。当需要向 github.com/dandanlan8090/hermes-micro-framework 推送内容时使用。
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms:
@@ -68,12 +68,12 @@ hermes-micro-framework/
 │   ├── init-vdb.sh            # .venv + pip + build_index
 │   └── vdb-autoload.py        # 预热 + 索引过期检测 + 自动重建
 │
-└── skills/
-    ├── core/                  # 铁律细则（9 skills）
-    ├── workflow/              # 高频工作流（9 skills）
-    ├── methodology/           # 思维框架（13 skills）
-    ├── infrastructure/        # 框架机制（8 skills）
-    ├── integration/           # 外部集成（4 skills）
+│   └── skills/
+│       ├── core/                  # 铁律细则（9 skills）
+│       ├── workflow/              # 高频工作流（10 skills）
+│       ├── methodology/           # 思维框架（19 skills）
+│       ├── infrastructure/        # 框架机制（8 skills）
+│       ├── integration/           # 外部集成（5 skills）
     └── templates/             # NEW_SKILL_TEMPLATE.md
 ```
 
@@ -119,7 +119,20 @@ hermes-micro-framework/
 | 框架演进变更 | FRAMEWORK_EVOLUTION.md + 对应 skill |
 | 修复 bug | 对应文件 + TROUBLESHOOTING.md |
 
-### Step 2: 脱敏扫描
+### Step 2（补充）：外部技能吸收
+
+从外部仓库（如 addyosmani/agent-skills）吸收 skill 时：
+
+1. 对比分析：识别重叠（吸收精华）和缺失（新增）的技能
+2. 格式转换：补全 Hermes metadata（trigger ≥5, disable ≥3, skill_type, priority）
+3. 分类放置：按 core/workflow/methodology/infrastructure/integration 放入正确目录
+4. 路由表注册：SOUL.md §技能路由表 新增对应行
+5. README 更新：技能全集表同步新增
+6. SOUL.md 技能索引：末尾分类速览同步更新数量
+7. 去重清理：原 repo 的 SVN.md 不要混入（仅吸收 SKILL.md 内容）
+8. 参考文档：每次吸收建立 `references/<repo>-absorption.md` 记录范围和方法
+
+### Step 3: 脱敏扫描
 
 ```bash
 cd /tmp/hermes-micro-framework
@@ -127,7 +140,7 @@ grep -rnE "/home/lan|fnubuntu|dandanlan|Hermes-fn" \
   --include="*.md" --include="*.py" --include="*.sh" . | grep -v ".git/" || echo "CLEAN"
 ```
 
-### Step 3: 合规验证
+### Step 4: 合规验证
 
 ```bash
 # Frontmatter 验证（全部 skill）
@@ -152,7 +165,7 @@ print('frontmatter OK')
 PY
 ```
 
-### Step 4: 验证目录结构
+### Step 5: 验证目录结构
 
 ```bash
 find /tmp/hermes-micro-framework -maxdepth 3 -type f | grep -v ".git/" | sort
@@ -160,7 +173,7 @@ find /tmp/hermes-micro-framework -maxdepth 3 -type f | grep -v ".git/" | sort
 
 必须包含：`SOUL.md`, `install.sh`, `README.md`, `LICENSE`, `.env.example`, `memories/USER.md`, `vdb/*.py`, `scripts/`, `skills/core/workflow/methodology/infrastructure/integration/templates`
 
-### Step 5: 预览变更
+### Step 6: 预览变更
 
 ```bash
 cd /tmp/hermes-micro-framework
@@ -168,7 +181,7 @@ git status --short
 git diff --cached --stat
 ```
 
-### Step 6: Commit + Push
+### Step 7: Commit + Push
 
 ```bash
 cd /tmp/hermes-micro-framework
@@ -202,6 +215,9 @@ git remote set-url origin "https://github.com/dandanlan8090/hermes-micro-framewo
 5. **Token 残留 remote URL** — 推完立即 `git remote set-url origin https://github.com/...`
 6. **vdb 未重建** — 新增/修改 skill 后必须 `build_index(force=True)`
 7. **install.sh 未适配新结构** — 如果改了 skills/ 目录结构，同步更新 install.sh
+8. **外部技能未做格式转换** — 从 addyosmani/agent-skills 等外部仓库吸收技能时，需补 Hermes metadata（trigger/disable tags）并放入正确分类目录；对比分析见 `references/addyosmani-absorption.md`
+9. **SOUL.md 技能索引未同步** — 新增/删除 skill 后忘记更新末尾 §技能索引 的分类数量和名称
+10. **铁律#0 加固后 README 未更新** — 修改铁律#0 触发条件后需同步更新 README.md 的铁律说明表
 
 ---
 
@@ -211,7 +227,8 @@ git remote set-url origin "https://github.com/dandanlan8090/hermes-micro-framewo
 - [ ] 脱敏扫描无个人路径/hostname/token
 - [ ] 所有 skill frontmatter 合规（trigger ≥5, disable ≥3）
 - [ ] SOUL.md 路由表与 skills/ 目录一致
-- [ ] README.md 已同步更新（技能列表、目录结构）
+- [ ] SOUL.md 末尾技能索引（数量+列表）已同步
+- [ ] README.md 已同步更新（技能列表、目录结构、铁律说明）
 - [ ] install.sh 已适配（如果改了目录结构）
 - [ ] vdb 已重建（`build_index(force=True)`）
 - [ ] Git remote 不含 token

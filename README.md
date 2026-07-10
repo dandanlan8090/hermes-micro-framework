@@ -181,7 +181,7 @@ hermes -p work chat            # 指定 profile
 
 | # | 铁律 | 完整细则 |
 |---|------|----------|
-| 0 | 技能检索：vdb > 路由表 > 列表扫描 > 手动遍历 | — |
+| 0 | 技能检索（强制入口）：命中路由表/任务对应skill/不确定/涉铁律操作时必须检索 | 四层检索 vdb > 路由表 > 列表 > 手动 |
 | 1 | 信息真实性：不得编造 | `hermes-truth-redline` |
 | 2 | 代码输出：完整代码块 | `hermes-code-output` |
 | 3 | 验证前置：IDENTIFY→RUN→READ→VERIFY | `hermes-verification-rules` |
@@ -212,6 +212,11 @@ PYTHONPATH=$PWD python3 -c "from matcher import search; [print(r['skill_name'], 
 
 当需要多 Agent 调度时，说"使用主脑模式"或"Oracle Mode"，
 系统自动加载 `hermes-oracle-mode` skill。
+
+### 技能速览索引
+
+SOUL.md 末尾附有完整技能索引（§技能索引），按 5 个分类列出所有 skill 名称。
+需要浏览可用技能时，直接查阅该索引。
 
 ---
 
