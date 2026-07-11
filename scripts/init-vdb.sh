@@ -70,9 +70,9 @@ if ! $SKIP_ENV; then
     fi
 fi
 
-echo "==> 5. 重建索引"
+echo "==> 5. 重建索引（含 IDF）"
 cd "$VDB_DST"
-PYTHONPATH="$PWD" python3 -c "from indexer import build_index; build_index(force=True)"
+PYTHONPATH="$PWD" python3 "${HERMES_DIR}/scripts/vdb-autoload.py" --auto
 echo ""
 
 echo "=========================================="

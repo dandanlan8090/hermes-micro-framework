@@ -4,7 +4,18 @@
 
 本仓库提供一套**微内核架构**的 Hermes 配置方案：SOUL.md 仅保留不可撼动的铁律和路由表，所有方法论、工作流、约束细则全部分布在独立 skill 中，通过 vdb 按需加载。
 
-相比传统全量 SOUL.md 模式，token 开销降低 60%+，且框架演进完全由用户驱动。
+**核心分界（成熟 Agent 框架标准做法）**：
+- **代码 + 元数据入库**：`vdb/*.py`、`scripts/*`、`skills/**`（62 个技能的全部 frontmatter 是框架元数据资产）
+- **索引 + 运行时状态本地生成**：Chroma 向量索引、`.venv`、`.env` 由 `install.sh` 在用户机器上就地重建，不入库
+
+---
+
+## v1.0 状态
+
+- **算法层已收敛**：RRF 融合（K=60）+ IDF 增强 sparse + trigger 加法加成（×0.010）+ desc 中文短语入索引，全部完成
+- **benchmark 稳定**：正式集 61 条 T1=88.3%/T3=91.7%；harder 集 17 条 T1=70.6%/T3=94.1%
+- **元数据层达标**：62 个技能全部 trigger ≥ 7、disable ≥ 2
+- **能力边界确认**：剩余失败 case 100% 为 BGE-M3 dense 语义偏差，非元数据可解（换 embedding 模型或 dense 侧 fine-tune 才能突破）
 
 ---
 
@@ -17,32 +28,33 @@ hermes-micro-framework/
 ├── LICENSE                    # MIT
 ├── TROUBLESHOOTING.md         # 故障排查指南
 │
-├── SOUL.md                    # → ~/.hermes/SOUL.md
-├── .env.example               # → ~/.hermes/.env
+├── SOUL.md                    # → ~/.hermes/SOUL.md（存量不覆盖）
+├── .env.example               # → ~/.hermes/.env（仅当不存在时）
 │
 ├── memories/
 │   ├── USER.md                # 用户画像模板
 │   └── FRAMEWORK_EVOLUTION.md # 框架演进记录
 │
-├── vdb/                       # 技能检索工具链
-│   ├── sparse.py              # 词法权重
-│   ├── embed.py               # BGE-M3 API 包装
-│   ├── indexer.py             # Chroma 索引构建
-│   ├── matcher.py             # 混合检索
+├── vdb/                       # 技能检索工具链（纯代码，不含索引）
+│   ├── sparse.py              # 词法权重（纯 Python, IDF 增强）
+│   ├── embed.py               # SiliconFlow BGE-M3 云端嵌入
+│   ├── indexer.py             # Chroma 索引构建（PROSE 模板 + IDF）
+│   ├── matcher.py             # RRF 混合检索（K=60 + trigger 加成）
+│   ├── eval_skill.py          # 盲测工具
 │   └── __init__.py
 │
 ├── scripts/
-│   ├── init-vdb.sh            # 环境初始化
-│   └── vdb-autoload.py        # 预热 + 索引检测
+│   ├── init-vdb.sh            # .venv + pip + build_index
+│   └── vdb-autoload.py        # 预热 + 索引过期检测 + 自动重建
 │
-└── skills/
-    ├── core/                  # 铁律细则（9 个微技能）
-    ├── workflow/              # 高频工作流（9 个）
-    ├── methodology/           # 思维框架（13 个）
-    ├── infrastructure/        # 框架机制（8 个）
-    ├── integration/           # 外部集成（4 个）
-    └── templates/             # NEW_SKILL_TEMPLATE.md
+└── skills/                    # 元数据资产（62 技能，全量同步）
+    ├── core/ workflow/ methodology/ infrastructure/ integration/  # 框架核心技能
+    ├── media/ research/ mlops/ smart-home/ social-media/ email/   # 外部吸收的领域技能
+    ├── apple/ data-science/ ...                                    # 平台/工具技能
+    └── templates/NEW_SKILL_TEMPLATE.md
 ```
+
+**不入库**：`~/.hermes/memories/MEMORY.md`（隐私）、`~/.hermes/.env`（密钥）、`~/.hermes/vdb/chroma/`（索引）、`~/.hermes/vdb/.venv/`（运行时）。
 
 ---
 
@@ -78,7 +90,7 @@ bash install.sh
 3. 补充 skills/ 到 `~/.hermes/skills/`
 4. 复制 vdb/ 工具链
 5. 创建 Python 虚拟环境 + 安装依赖
-6. 重建 Chroma 向量索引
+6. **重建 Chroma 向量索引**（`build_index(force=True)`）
 7. **vdb 预热 + 索引过期检测**（自动重建）
 
 完成后：
@@ -113,18 +125,14 @@ diff -u ~/.hermes/memories/USER.md memories/USER.md
 ### 多 Profile 安装
 
 ```bash
-# 先确认当前 profile
 hermes profile list   # ◆ 标记活跃 profile
-
-# 安装到指定 profile
 bash install.sh --profile work
 ```
 
-如果不指定 `--profile`，脚本会自动检测非 default profile 并警告。
 Profile 模式下：
 - `SOUL.md` → `~/.hermes/profiles/<name>/`
 - `skills/` → `~/.hermes/profiles/<name>/skills/`
-- `vdb/` → 全局共享，自动跟随 `$HERMES_HOME`
+- `vdb/` → 全局共享
 - `.env` → 全局共享
 
 ### 强制覆盖
@@ -144,7 +152,7 @@ bash install.sh --force
 vdb 使用硅基流动的 BGE-M3 做云端嵌入。编辑 `~/.hermes/.env`：
 
 ```bash
-SILICONFLOW_API_KEY=sk-your-key-here
+SILICONFLOW_API_KEY=sk-your-key
 ```
 
 免费注册：https://siliconflow.cn
@@ -190,10 +198,10 @@ hermes -p work chat            # 指定 profile
 | 6 | 思考范围：不规划后续/不预判/不过度推演/不拓展 | 4 个 boundary 微技能 |
 
 铁律#6 拆为 4 个微技能，按违规行为精准触发：
-- 规划后续对话 → `skill_view(name='hermes-boundary-no-future-planning')`
-- 预判后续任务 → `skill_view(name='hermes-boundary-no-task-prediction')`
-- 过度推演 → `skill_view(name='hermes-boundary-no-over-reasoning')`
-- 自行拓展场景 → `skill_view(name='hermes-boundary-no-scope-creep')`
+- 规划后续对话 → `hermes-boundary-no-future-planning`
+- 预判后续任务 → `hermes-boundary-no-task-prediction`
+- 过度推演 → `hermes-boundary-no-over-reasoning`
+- 自行拓展场景 → `hermes-boundary-no-scope-creep`
 
 ### vdb 按需加载
 
@@ -210,92 +218,41 @@ PYTHONPATH=$PWD python3 -c "from matcher import search; [print(r['skill_name'], 
 
 ### 主脑模式
 
-当需要多 Agent 调度时，说"使用主脑模式"或"Oracle Mode"，
-系统自动加载 `hermes-oracle-mode` skill。
-
-### 技能速览索引
-
-SOUL.md 末尾附有完整技能索引（§技能索引），按 5 个分类列出所有 skill 名称。
-需要浏览可用技能时，直接查阅该索引。
+当需要多 Agent 调度时，说"使用主脑模式"或"Oracle Mode"，系统自动加载 `hermes-oracle-mode` skill。
 
 ---
 
-## 技能全集
+## 技能全集（62 个）
 
-### core/ — 铁律细则（9 个）
+> 完整索引见 SOUL.md 末尾 §技能索引。以下按目录分类列出。
 
-| 技能 | 说明 | 触发 |
-|------|------|------|
-| `hermes-truth-redline` | 信息真实性红线 | 编造/不确定/高危操作 |
-| `hermes-code-output` | 代码输出规范 | 脚本/配置输出 |
-| `hermes-verification-rules` | 验证铁律 | 完成/成功结论前 |
-| `hermes-safety` | 安全约束 | 恶意/入侵/脱敏 |
-| `hermes-evolution-rules` | 改进优先 | 修改框架自身 |
-| `hermes-boundary-no-future-planning` | 不规划后续对话 | agent 引导下一轮 |
-| `hermes-boundary-no-task-prediction` | 不预判任务 | agent 脑补需求 |
-| `hermes-boundary-no-over-reasoning` | 不过度推演 | 思考链过长 |
-| `hermes-boundary-no-scope-creep` | 不拓展场景 | agent 主动给额外建议 |
+### 框架核心
 
-### workflow/ — 工作流（10 个）
+**core/ — 铁律细则**：`hermes-truth-redline` `hermes-code-output` `hermes-verification-rules` `hermes-safety` `hermes-evolution-rules` `hermes-boundary-no-future-planning` `hermes-boundary-no-task-prediction` `hermes-boundary-no-over-reasoning` `hermes-boundary-no-scope-creep`
 
-| 技能 | 说明 |
-|------|------|
-| `hermes-oracle-mode` | 主脑模式：多 Agent 调度 |
-| `hermes-plan-workflow` | Plan + todo 推进 |
-| `hermes-tdd-workflow` | TDD 测试驱动 |
-| `hermes-shipping-verification` | 发布验证 + 回滚 |
-| `hermes-parallel-dispatch` | 并行 Agent 派发 |
-| `hermes-git-worktree` | Git 工作流 + worktree 隔离 |
-| `hermes-fault-troubleshooting` | 系统故障处理 |
-| `repo-publishing-workflow` | 仓库发布与同步 |
-| `agent-collaboration-workflow` | 三 Agent 协作 |
-| `ci-cd-and-automation` | CI/CD pipeline 自动化 |
+**workflow/ — 工作流**：`ci-cd-and-automation` `hermes-oracle-mode` `hermes-plan-workflow` `hermes-tdd-workflow` `hermes-shipping-verification` `hermes-parallel-dispatch` `hermes-git-worktree` `hermes-fault-troubleshooting` `repo-publishing-workflow` `agent-collaboration-workflow`
 
-### methodology/ — 思维框架（19 个）
+**methodology/ — 思维框架**：`api-and-interface-design` `deprecation-and-migration` `hermes-boundary-rules` `incremental-implementation` `performance-optimization` `search-retrieval-evaluation` `spec-driven-development` `source-driven-development` `doubt-driven-development` `code-review-and-audit` `debugging-patterns` `codebase-memory-first` `ai-conv-style-discipline` `hermes-knowledge-base` `hermes-todo-progress` `hermes-agent-skill-authoring` `code-simplification` `plan` `openai-compat-thinking`
 
-| 技能 | 说明 |
-|------|------|
-| `source-driven-development` | 源码驱动开发 |
-| `doubt-driven-development` | 怀疑驱动审查 |
-| `code-review-and-audit` | 代码审查 |
-| `debugging-patterns` | 交互式调试 + 生产问题排查 |
-| `codebase-memory-first` | 代码知识图谱 |
-| `ai-conv-style-discipline` | CLI 对话风格 |
-| `hermes-knowledge-base` | 知识库整理 |
-| `hermes-todo-progress` | TODO 进度 |
-| `hermes-agent-skill-authoring` | 技能创建规范 |
-| `hermes-framework-evolution` | 框架演进方法论 |
-| `code-simplification` | 代码简化 |
-| `plan` | Plan Mode |
-| `openai-compat-thinking` | 推理链思考 |
-| `performance-optimization` | 性能优化（前端/后端/数据库） |
-| `spec-driven-development` | Spec 先行开发 |
-| `deprecation-and-migration` | 废弃与迁移管理 |
-| `incremental-implementation` | 增量实现（垂直切片） |
-| `api-and-interface-design` | API 设计规范 |
+**infrastructure/ — 框架机制**：`hermes-framework` `vdb-retrieval-pipeline` `codebase-memory-mcp` `autoload-vdb`
 
-### infrastructure/ — 框架机制（8 个）
+**integration/ — 外部集成**：`hermes-micro-framework` `hermes-agent` `hermes-base-config-sync` `system-admin` `github`
 
-| 技能 | 说明 |
-|------|------|
-| `vdb-retrieval-pipeline` | vdb 语义检索管道 |
-| `hermes-framework-loader` | 框架文件加载规则 |
-| `hermes-framework-architecture` | 框架架构参考 |
-| `hermes-framework-troubleshooting` | 框架故障诊断 |
-| `hermes-framework-changelog` | 框架变更审计 |
-| `autoload-vdb` | vdb 自动加载 |
-| `codebase-memory-mcp` | 代码图谱 MCP |
-| `hermes-self-optimization` | 系统 Prompt 优化 |
+### 领域技能（外部吸收）
 
-### integration/ — 外部集成（4 个）
+**media/**：`gif-search` `media-creation-and-audio` `youtube-content`
+**research/**：`arxiv` `blogwatcher` `llm-wiki` `polymarket` `research-paper-writing`
+**mlops/**：`mlops-evaluation` `mlops-inference` `audiocraft-audio-generation` `segment-anything-model`
+**smart-home/**：`openhue`
+**social-media/**：`xurl`
+**email/**：`himalaya`
+**apple/**：`macos-computer-use`
 
-| 技能 | 说明 |
-|------|------|
-| `hermes-agent` | Hermes 配置与排障 |
-| `hermes-base-config-sync` | 配置仓库同步 |
-| `system-admin` | 系统管理 |
-| `github` | GitHub 工作流 |
-| `hermes-micro-framework` | **本仓库维护规则** |
+### 工具/平台
+
+`agent-reach` `computer-use` `data-science/jupyter-live-kernel` `dogfood` `yuanbao` `hermes-git-worktree` `hermes-knowledge-base`
+
+> 注：技能随框架演进持续扩充，以上为 v1.0 快照。最新列表以 `skills/` 目录为准。
 
 ---
 
@@ -314,37 +271,38 @@ cd hermes-micro-framework
 grep -rnE "/home/[a-z]+|fnubuntu|dandanlan|Hermes-fn" \
   --include="*.md" --include="*.py" --include="*.sh" . | grep -v ".git/" || echo "CLEAN"
 
-# 4. 技能合规验证
-python3 -c "
+# 4. 技能合规验证（trigger ≥ 7, disable ≥ 2）
+python3 - <<'PY'
 import pathlib, re, yaml
 root = pathlib.Path('skills')
-for p in sorted(root.glob('*/*/SKILL.md')):
-    t = p.read_text(); assert t.startswith('---'), f'{p}: no fm'
+for p in sorted(root.glob('**/SKILL.md')):
+    t = p.read_text()
+    assert t.startswith('---'), f'{p}: no fm'
     fm = yaml.safe_load(t[3:re.search(chr(10)+'---'+chr(10), t[3:]).start()+3])
     h = fm.get('metadata',{}).get('hermes',{})
-    assert len(h.get('tags',{}).get('trigger',[])) >= 5, f'{p}: trigger<5'
-    assert len(h.get('tags',{}).get('disable',[])) >= 3, f'{p}: disable<3'
+    assert len(h.get('tags',{}).get('trigger',[])) >= 7, f'{p}: trigger<7'
+    assert len(h.get('tags',{}).get('disable',[])) >= 2, f'{p}: disable<2'
 print('frontmatter OK')
-"
+PY
 
 # 5. 提交
 git add -A
-git commit -m "type: subject"
-# type: feat / fix / refactor / docs / sanitize
+git commit -m "type: subject"   # type: feat / fix / refactor / docs / sanitize
 
 # 6. 推送（需用户明确授权）
 git remote set-url origin "https://$(gh auth token)@github.com/dandanlan8090/hermes-micro-framework.git"
 git push
-git remote set-url origin "https://github.com/dandanlan8090/hermes-micro-framework.git"
+git remote set-url origin "https://github.com/dandanlan8090/hermes-micro-framework.git"  # 推完立即还原
 ```
 
 ### 新增 skill 流程
 
 1. 在正确分类下创建 `skills/<category>/<name>/SKILL.md`
-2. 遵守 `hermes-agent-skill-authoring` 规范（trigger ≥5, disable ≥3）
+2. 遵守 `hermes-agent-skill-authoring` 规范（trigger ≥ 7, disable ≥ 2，详见 `autoload-vdb/references/METADATA_GUIDE.md`）
 3. 在 `SOUL.md §技能路由表` 新增一行
 4. 在 `README.md §技能全集` 新增一行
 5. 重建 vdb 索引：`build_index(force=True)`
+6. 运行 `vdb-autoload.py --check` 确认 "索引最新"
 
 ### 推送红线
 
@@ -360,24 +318,35 @@ git remote set-url origin "https://github.com/dandanlan8090/hermes-micro-framewo
 query
   │
   ├──▶ 云端 (SiliconFlow BAAI/bge-m3, 1024d)
-  │     Chroma hnsw cosine 召回 top-16
+  │     PROSE_DOC_TEMPLATE = "{name}：{leading}。{desc}。触发：{branches}。"
+  │     Chroma HNSW cosine 召回 top-16
   │
-  └──▶ 本地 (sparse.py, 纯 Python)
-       仅 trigger_tags → lexical matching
-       final = 0.6 × dense + 0.4 × sparse
-       → disable 过滤 → top-5
+  └──▶ 本地 (sparse.py, 纯 Python, IDF 增强)
+        trigger_tags + description 中文短语(≥2字) → TF-IDF 权重
+        leading word 命中 2x boost
+        （英文 description 完全隔离，不参与 sparse）
+        ↓
+  RRF 融合 (RRF_K=60):
+    final = 1/(60+dense_rank) + 1/(60+sparse_rank) + (trigger命中 ? +0.010 : 0)
+        ↓
+  disable 过滤（disable in query 子串匹配）→ top-5
 ```
+
+### 能力边界（重要）
+
+**dense embedding 足够强时，sparse/trigger/disable 的边际贡献趋近于零。**
+
+当两技能 dense 向量很近时（如 `fault-troubleshooting dr=1` vs `debugging-patterns dr=7~9`），sparse + trigger 加成翻不动。剩余失败 case 根因是 BGE-M3 语义偏差，非元数据问题。除非换 embedding 模型或做 dense 侧 domain fine-tune，否则到顶。
+
+**不要死磕元数据**：trigger 补全 + disable 加强只救 sparse 主导的 case；信息密度低的自然语言 query（harder set）卡在 ~70% 是 embedding 上限。
 
 ### 健康检查
 
 ```bash
 # 索引过期检测
-cd ~/.hermes/vdb && source .venv/bin/activate
-PYTHONPATH=$PWD python3 -c "from indexer import check_index_stale; s,r=check_index_stale(); print('过期' if s else '最新', r)"
-
-# 完整启动检测
 python3 ~/.hermes/scripts/vdb-autoload.py --check   # 只检测
-python3 ~/.hermes/scripts/vdb-autoload.py --force   # 检测 + 过期自动重建
+python3 ~/.hermes/scripts/vdb-autoload.py --auto    # 检测 + 过期自动重建
+python3 ~/.hermes/scripts/vdb-autoload.py --force   # 强制全量重建
 ```
 
 ### 模型替换

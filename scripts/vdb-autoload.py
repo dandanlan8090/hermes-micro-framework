@@ -1,25 +1,27 @@
-"""vdb 启动预热 + 索引过期检测
+"""vdb 启动预热 + 索引过期检测 + 自动重建
 
 用途：
   1. 预热 Chroma 连接（消除首查延迟）
   2. 检测 skills/ 是否比索引新
-  3. 检测到过期时自动重建（--force）或提示
+  3. P2: 新增/删除技能时自动重建 IDF 权重
+  4. 检测到过期时自动重建（--auto）或提示
 
 用法：
   python3 vdb-autoload.py            # 预热 + 被动检测，过期提示
-  python3 vdb-autoload.py --force    # 预热 + 过期自动重建
+  python3 vdb-autoload.py --auto     # 预热 + 过期自动重建（推荐开机/install 用）
+  python3 vdb-autoload.py --force    # 强制全量重建（不管是否过期）
   python3 vdb-autoload.py --check    # 只检测不预热
 
 放置位置：~/.hermes/scripts/vdb-autoload.py
-install.sh 在安装最后自动执行一次。
+install.sh 安装最后执行一次 `--auto`。
 """
 
-import sys, os
-import argparse
+import sys, os, argparse, subprocess
 
 VDB_DIR = os.path.expanduser("~/.hermes/vdb")
 HERMES_HOME = os.path.expanduser("~/.hermes")
 ENV_PATH = os.path.join(HERMES_HOME, ".env")
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 确保 vdb 在 Python 路径
 if VDB_DIR not in sys.path:
@@ -56,9 +58,30 @@ def check_stale():
         return True, str(e)
 
 
+def rebuild():
+    """全量重建索引（含 IDF 重算）。"""
+    venv_python = os.path.join(VDB_DIR, ".venv", "bin", "python3")
+    if not os.path.exists(venv_python):
+        venv_python = "python3"
+    cmd = [
+        venv_python, "-c",
+        "from indexer import build_index; build_index(force=True)"
+    ]
+    print("[vdb]   正在重建索引（含 IDF）...")
+    result = subprocess.run(cmd, cwd=VDB_DIR, capture_output=True, text=True, timeout=300)
+    for line in result.stdout.strip().split("\n"):
+        print(f"         {line}")
+    if result.returncode != 0:
+        print(f"[vdb]   ❌ 重建失败: {result.stderr[:200]}")
+        return False
+    print("[vdb]   ✅ 索引重建完成")
+    return True
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="vdb 预热 + 索引检测")
-    parser.add_argument("--force", action="store_true", help="过期自动重建")
+    parser = argparse.ArgumentParser(description="vdb 预热 + 索引检测 + 重建")
+    parser.add_argument("--force", action="store_true", help="强制全量重建（忽略过期检测）")
+    parser.add_argument("--auto", action="store_true", help="预热 + 过期自动重建")
     parser.add_argument("--check", action="store_true", help="只检测不预热")
     args = parser.parse_args()
 
@@ -66,29 +89,34 @@ if __name__ == "__main__":
         stale, reason = check_stale()
         if stale:
             print(f"[vdb] 索引过期: {reason}")
-            print("[vdb] 运行：cd ~/.hermes/vdb && source .venv/bin/activate && PYTHONPATH=$PWD python3 -c \"from indexer import build_index; build_index(force=True)\"")
+            print("[vdb] ⚠  IDF 基于当前技能集计算，新增/删除技能后 IDF 不准确。")
+            print("[vdb] 运行：python3 vdb-autoload.py --auto  自动重建")
         else:
-            print("[vdb] 索引最新")
+            print("[vdb] ✅ 索引最新（IDF 与你当前技能集匹配）")
         sys.exit(0 if not stale else 1)
 
-    # 预热
+    if args.force:
+        print("[vdb] 🔨 强制全量重建（--force）")
+        ok = warmup()
+        rebuild()
+        sys.exit(0)
+
+    # --auto 或不带参数：预热 + 过期检测
     ok = warmup()
     if ok:
         print("[vdb] ✅ Chroma 预热完成")
     else:
         print("[vdb] ⚠️  Chroma 不可用，vdb 将降级为 skills_list 回退")
+        sys.exit(1)
 
-    # 检测过期
     stale, reason = check_stale()
     if stale:
         print(f"[vdb] ⚠️  索引过期: {reason}")
-        if args.force:
-            print("[vdb]   自动重建中...")
-            sys.path.insert(0, VDB_DIR)
-            from indexer import build_index
-            build_index(force=True)
+        print("[vdb]    IDF 需要基于当前全部技能重新计算。")
+        if args.auto:
+            rebuild()
         else:
-            print("[vdb]   运行以下命令重建：")
-            print("       cd ~/.hermes/vdb && source .venv/bin/activate && PYTHONPATH=$PWD python3 -c \"from indexer import build_index; build_index(force=True)\"")
+            print("[vdb]    运行下命令自动重建：")
+            print("       python3 vdb-autoload.py --auto")
     else:
-        print("[vdb] ✅ 索引最新")
+        print("[vdb] ✅ 索引最新（IDF 与当前技能集一致）")

@@ -16,6 +16,8 @@ metadata:
       trigger:
       - 增量实现
       - incremental
+      - 增量交付
+      - 分期交付
       - 分步实现
       - 分阶段
       - vertical slice

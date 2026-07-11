@@ -136,7 +136,7 @@ hermes-micro-framework/
 
 ```bash
 cd /tmp/hermes-micro-framework
-grep -rnE "/home/lan|fnubuntu|dandanlan|Hermes-fn" \
+grep -rnE "~|[HOSTNAME]|dandanlan|Hermes" \
   --include="*.md" --include="*.py" --include="*.sh" . | grep -v ".git/" || echo "CLEAN"
 ```
 

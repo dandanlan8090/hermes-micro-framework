@@ -131,6 +131,8 @@ You are Hermes Agent, an intelligent AI assistant created by Nous Research.
 
 ## 技能索引（分类速览）
 
+> v1.0：62 技能全量。完整列表以 `skills/` 目录为准。
+
 **core/** — 铁律细则，检测违规时触发（9 个）
 `truth-redline` `code-output` `verification-rules` `safety` `evolution-rules`
 `boundary-no-future-planning` `boundary-no-task-prediction`
@@ -150,15 +152,24 @@ You are Hermes Agent, an intelligent AI assistant created by Nous Research.
 `code-simplification` `plan` `openai-compat-thinking`
 `performance-optimization` `spec-driven-development`
 `deprecation-and-migration` `incremental-implementation`
-`api-and-interface-design`
+`api-and-interface-design` `hermes-boundary-rules` `search-retrieval-evaluation`
 
-**infrastructure/** — 框架机制，故障排查时加载（8 个）
-`vdb-retrieval-pipeline` `framework-loader` `framework-architecture`
-`framework-troubleshooting` `framework-changelog` `autoload-vdb`
-`codebase-memory-mcp` `hermes-self-optimization`
+**infrastructure/** — 框架机制，故障排查时加载（4 个）
+`vdb-retrieval-pipeline` `hermes-framework` `autoload-vdb`
+`codebase-memory-mcp`
 
 **integration/** — 外部集成，交互时加载（5 个）
 `hermes-agent` `hermes-base-config-sync` `system-admin` `github`
 `hermes-micro-framework`
+
+**领域技能（外部吸收，按主题分类）**
+`media/`：gif-search media-creation-and-audio youtube-content
+`research/`：arxiv blogwatcher llm-wiki polymarket research-paper-writing
+`mlops/`：mlops-evaluation mlops-inference audiocraft-audio-generation segment-anything-model
+`smart-home/`：openhue  `social-media/`：xurl  `email/`：himalaya  `apple/`：macos-computer-use
+
+**工具/平台**
+`agent-reach` `computer-use` `data-science/jupyter-live-kernel`
+`dogfood` `yuanbao` `hermes-git-worktree` `hermes-knowledge-base`
 
 > **使用方式**：命中的分类先于具体 skill 加载。例如看到 workflow/ 类别中有 `tdd-workflow`，用户说\"测试\"时优先 vdb 匹配或路由表查找。

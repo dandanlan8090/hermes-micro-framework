@@ -1,12 +1,16 @@
-"""匹配器 — Chroma 稠密召回 → sparse 重打分 → disable 过滤。
+"""
+匹配器 — Chroma 稠密召回 → sparse 重打分 → RRF 融合 → disable 过滤。
 
 流程:
   1. query → 云端 BGE-M3 稠密向量
-  2. Chroma cosine 距离召回 top-K 候选技能
+  2. Chroma cosine 距离召回 top-K 候选技能（dense rank）
   3. 每个候选: 计算本地 sparse 匹配分（trigger_tags vs query）
-  4. final = 0.6 × dense + 0.4 × sparse
-  5. disable 标签命中则过滤
-  6. 按分数排序返回
+  4. disable 标签命中则过滤
+  5. 在有效候选中按 sparse 分排 sparse rank
+  6. RRF = 1/(k + dense_rank) + 1/(k + sparse_rank)
+  7. 按 RRF 分数排序返回
+
+回滚: VEC_WEIGHT/SPARSE_WEIGHT 保留，切回 line:113 的旧表达式即可。
 """
 
 import json
@@ -18,9 +22,13 @@ from chromadb.config import Settings
 from embed import get_cloud_dense, calculate_sparse_score
 from indexer import VDB_DIR, CHROMA_DIR, COLLECTION_NAME, TOP_K_CANDIDATES
 
-# ── 可调权重 ──────────────────────────────────────────────────
+# ── 参数 ──────────────────────────────────────────────────────────
+# 旧权重保留供回滚对比（2026-07-11 前用 0.6/0.4）
 VEC_WEIGHT = 0.6
 SPARSE_WEIGHT = 0.4
+# RRF 融合参数
+RRF_K = 60
+
 # v2.1: prose 对齐 query 模板。DOC 侧是 "{name}：{leading}。{desc}。触发：{branches}。"
 # QUERY 侧用 "{query}" 动词对齐。短查询(<10字)才包装，长查询保留裸 query
 QUERY_TEMPLATE_PROSE = "调用{query}。"
@@ -52,7 +60,7 @@ def is_healthy() -> bool:
 # ── 匹配 ─────────────────────────────────────────────────────────
 
 def search(query: str, top_k: int = 5) -> List[dict]:
-    """主入口：稠密→sparse→过滤→排序。
+    """主入口：稠密→sparse→RRF→过滤→排序。
 
     vdb 不可用时（chroma 损坏 / 未构建）返回空列表，不抛异常。
     """
@@ -77,12 +85,12 @@ def search(query: str, top_k: int = 5) -> List[dict]:
     distances = results["distances"][0]
     metadatas = results["metadatas"][0]
 
+    # Chroma 返回按余弦距离升序（最近优先），迭代序号即 dense rank
     candidates = []
-    for dist, meta in zip(distances, metadatas):
+    for dense_rank, (dist, meta) in enumerate(zip(distances, metadatas), start=1):
         dense_score = 1.0 - dist  # cosine 距离转相似度
         tag_sparse = meta.get("tag_sparse", "{}")
         sparse_score = calculate_sparse_score(query, tag_sparse)
-        final_score = VEC_WEIGHT * dense_score + SPARSE_WEIGHT * sparse_score
 
         disable = json.loads(meta.get("disable_tags", "[]"))
         trigger = json.loads(meta.get("trigger_tags", "[]"))
@@ -92,9 +100,10 @@ def search(query: str, top_k: int = 5) -> List[dict]:
             "skill_path": meta["skill_path"],
             "trigger_tags": trigger,
             "disable_tags": disable,
-            "final_score": round(final_score, 4),
+            "dense_rank": dense_rank,
             "dense_score": round(dense_score, 4),
             "sparse_score": round(sparse_score, 4),
+            # final_score 在 RRF 计算后填充
         })
 
     # 3. 过滤 disable（禁用标签匹配即排除）
@@ -117,7 +126,27 @@ def search(query: str, top_k: int = 5) -> List[dict]:
         if not hit:
             valid.append(item)
 
-    # 4. 按分数排序
+    if not valid:
+        return []
+
+    # 4. RRF 融合：按 sparse_score 降序赋予 sparse rank
+    # （dense_rank 已在 Chroma 结果中固化）
+    sparse_sorted = sorted(valid, key=lambda x: x["sparse_score"], reverse=True)
+    for i, item in enumerate(sparse_sorted, start=1):
+        item["sparse_rank"] = i
+
+    # 5. 计算 RRF final_score = 1/(k + dense_rank) + 1/(k + sparse_rank)
+    # 5+. trigger_tags 命中加分：query 含触发词则 +0.005（加法叠加，避免 dense 主导时 boost 无效）
+    TRIG_HIT_BONUS = 0.010
+    for item in valid:
+        sr = item["sparse_rank"]
+        dr = item["dense_rank"]
+        rrf_score = 1.0 / (RRF_K + dr) + 1.0 / (RRF_K + sr)
+        if any(t.lower() in query_lower for t in item["trigger_tags"]):
+            rrf_score += TRIG_HIT_BONUS
+        item["final_score"] = round(rrf_score, 4)
+
+    # 6. 按 final_score 排序返回
     valid.sort(key=lambda x: x["final_score"], reverse=True)
     return valid[:top_k]
 
@@ -141,4 +170,5 @@ if __name__ == "__main__":
     for r in results:
         trig = ", ".join(r["trigger_tags"][:3])
         print(f"  {r['final_score']:.3f}  {r['skill_name']:35s}  "
-              f"d={r['dense_score']:.3f}  s={r['sparse_score']:.3f}  [{trig}]")
+              f"d={r['dense_score']:.3f}  s={r['sparse_score']:.3f}  "
+              f"dr={r['dense_rank']}  sr={r['sparse_rank']}  [{trig}]")

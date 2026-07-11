@@ -1,10 +1,12 @@
-"""索引构建 — Chroma 入库。
+"""
+索引构建 — Chroma 入库。
 
 流程:
   1. 遍历 skills/ 解析 frontmatter
   2. PROSE_DOC_TEMPLATE 拼接 name+leading+desc+branches → 云端 BGE-M3 稠密向量
   3. trigger_tags → 本地 sparse weights（隔离英文 description，leading word 2x boost）
-  4. 写入 Chroma 集合（向量 + metadata 含 tag_sparse）
+  4. P2: 全局 IDF 计算，weight = log(1+tf) × idf(t)
+  5. 写入 Chroma 集合（向量 + metadata 含 tag_sparse）
 
 v2.1 (2026-07-10) 改进点:
   - DOC_TEMPLATE 改成 prose 模板：name：{leading}。{desc}。触发：{branches}。
@@ -13,13 +15,14 @@ v2.1 (2026-07-10) 改进点:
   - 模板改动 → 必须 force=True 重建索引
 """
 
-import os, re, hashlib, json
+import os, re, hashlib, json, math
 from pathlib import Path
 
 import chromadb
 from chromadb.config import Settings
 
 from embed import get_cloud_dense, get_tag_sparse_dict
+from sparse import compute_idf_from_skills
 
 
 def _get_hermes_home() -> Path:
@@ -215,19 +218,25 @@ def build_index(force: bool = False):
         doc_text = PROSE_DOC_TEMPLATE.format(
             name=name, leading=leading, desc=desc, branches=branches
         )
-        skills.append((name, str(path), doc_text, trig, disable))
+        skills.append((name, str(path), doc_text, trig, disable, desc))
 
     if not skills:
         print("[indexer] 无技能需索引")
         return
 
+    # P2: 全局 IDF 计算（含 trigger_tags + desc 中文短语）
+    print(f"[indexer] 计算全局 IDF（{len(skills)} 个技能，含 description 中文短语）...")
+    idf_map = compute_idf_from_skills(skills)
+    print(f"[indexer] IDF tokens: {len(idf_map)}，"
+          f"范围 [{min(idf_map.values()):.2f}, {max(idf_map.values()):.2f}]")
+
     print(f"[indexer] 技能 {len(skills)} 个，正在云端稠密向量化...")
     dense_vecs = get_cloud_dense([s[2] for s in skills])
 
-    print(f"[indexer] 本地 sparse 权重（仅 trigger_tags）...")
+    print(f"[indexer] 本地 sparse 权重（IDF 增强版）...")
     ids, embeddings, documents, metadatas = [], [], [], []
-    for i, (name, path, doc_text, trig, disable) in enumerate(skills):
-        tag_sparse = get_tag_sparse_dict(trig)
+    for i, (name, path, doc_text, trig, disable, desc) in enumerate(skills):
+        tag_sparse = get_tag_sparse_dict(trig, idf_map=idf_map, desc=desc)
         h = _file_hash(Path(path))
         ids.append(f"{name}__v{h}")
         embeddings.append(dense_vecs[i])
@@ -239,7 +248,7 @@ def build_index(force: bool = False):
             "disable_tags": json.dumps(disable, ensure_ascii=False),
             "tag_sparse": tag_sparse,
             "file_hash": h,
-            "embedding_version": "bge-m3-siliconflow-v1",
+            "embedding_version": "bge-m3-siliconflow-v2-idf",
         })
 
     collection.add(
@@ -251,17 +260,24 @@ def build_index(force: bool = False):
     count = collection.count()
     print(f"[indexer] Chroma 写入完成: {count} 个技能, dim={len(dense_vecs[0])}")
 
-    # ── v2.1: 写状态文件（供健康检查检测索引过期） ─────────────────
+    # ── 写状态文件（含 IDF 映射）─────────────────────────────────
     VDB_DIR.mkdir(parents=True, exist_ok=True)
     state = {
         "count": count,
         "dim": len(dense_vecs[0]),
         "skill_hashes": {s[0]: _file_hash(Path(s[1])) for s in skills},
+        "idf_tokens": len(idf_map),
+        "embedding_version": "bge-m3-siliconflow-v2-idf",
         "built_at": __import__("datetime").datetime.now().isoformat(),
     }
     state_path = VDB_DIR / "vdb_state.json"
     state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # 存储 IDF 映射（供后续版本兼容使用，当前查询端不依赖）
+    idf_path = VDB_DIR / "idf_map.json"
+    idf_path.write_text(json.dumps(idf_map, ensure_ascii=False), encoding="utf-8")
     print(f"[indexer] 状态文件已保存: {state_path}")
+    print(f"[indexer] IDF 映射已保存: {idf_path} ({len(idf_map)} tokens)")
 
 
 # ── 状态文件（健康检查） ─────────────────────────────────────────────
