@@ -291,6 +291,8 @@ Top-5 召回：
 
 ## 开发者指南
 
+> 外部协作者请优先阅读 [`CONTRIBUTING.md`](CONTRIBUTING.md)（PR 流程、skill 命名规范、脱敏红线）。以下面向维护者。
+
 ### 本地工作流
 
 ```bash
