@@ -253,6 +253,29 @@ Top-5 召回：
 
 > 注：不是所有 query 都命中完美。例如"帮我部署这个服务"因 BGE-M3 语义偏差会更靠近 `system-admin`（见 §技能检索系统 → 能力边界）。这是 embedding 模型上限，非元数据问题。
 
+### 配置领域无关性（重要）
+
+本框架的适配度遵循一个核心原则：**铁律不挑领域，skill 决定适配。**
+
+- **SOUL.md 七条铁律 = 跨所有生产类型的"宪法"**：保证无论干哪类任务都守规矩（信息真实 / 验证前置 / 安全约束 / 代码完整输出 / 改进优先于新增…），但它**不决定当前配置适合什么生产类型**。
+- **真正决定适配度的是 `skills/` 资产库的主题分布**：vdb 按需注入，不命中的 skill 永不进对话。所以"这套配置适合什么生产类型" = 你手里有什么 skill。
+
+实测资产分布（v1.0，62 个活跃 skill，不含 `.archive`）：
+
+| 主题域 | skill 数 | 代表 |
+|--------|---------|------|
+| AI Agent 架构 / 框架维护 | 13 | `hermes-oracle-mode` `hermes-parallel-dispatch` `agent-collaboration-workflow` `hermes-agent-skill-authoring` `vdb-retrieval-pipeline` |
+| 代码开发 / 工程化 | 12 | `debugging-patterns` `code-review-and-audit` `hermes-tdd-workflow` `hermes-git-worktree` `hermes-shipping-verification` |
+| 研究 / 检索 | 6 | `arxiv` `blogwatcher` `llm-wiki` `polymarket` `research-paper-writing` |
+| MLOps / 模型 | 4 | `mlops-inference` `mlops-evaluation` `audiocraft-audio-generation` `segment-anything-model` |
+| 媒体 / 社交 / 家居 / 邮件 / 运维 / 桌面 | 各 1–3 | `youtube-content` `xurl` `openhue` `himalaya` `system-admin` `computer-use` |
+
+**推论**：想让配置适配某新生产类型（如"法律合同审查""生物信息分析"），**无需改 SOUL**——
+只需往 `skills/` 加对应领域 skill（遵守 authoring 规范）+ `build_index(force=True)` 重建 vdb 即可。
+铁律提供约束框架，skill 资产提供能力覆盖，两者正交。
+
+> 纯闲聊场景是这套配置的负 ROI：铁律文本常驻 context 每轮必发，但闲聊不触发任何 skill，框架价值归零。轻量聊天建议用独立 chat profile（精简 SOUL + 空路由表）而非默认 profile。
+
 ---
 
 ## 技能全集（62 个）
