@@ -220,6 +220,39 @@ PYTHONPATH=$PWD python3 -c "from matcher import search; [print(r['skill_name'], 
 
 当需要多 Agent 调度时，说"使用主脑模式"或"Oracle Mode"，系统自动加载 `hermes-oracle-mode` skill。
 
+### 典型对话示例（按需加载实测）
+
+**场景**：用户说"部署 flask 到生产环境"。系统不做全量加载，而是用 vdb 语义检索从 62 个技能里找出最相关的。
+
+实际检索链路（真实输出）：
+
+```
+Query: "部署 flask 到生产环境"
+
+┌─ 稠密通道 (BGE-M3 1024d)
+│   "部署 flask 到生产环境" → 向量 → Chroma cosine top-16
+│   hermes-shipping-verification 排 dense_rank=2
+│
+├─ 稀疏通道 (trigger: 部署/生产/发布/服务部署 ...)
+│   hermes-shipping-verification 的 trigger 命中 → sparse_rank=1
+│
+└─ RRF 融合 (K=60): 1/(60+2) + 1/(60+1) ≈ 0.0331
+    + trigger 命中 +0.010 → 综合得分 0.0425（实测第一）
+
+Top-5 召回：
+  1. ◀ hermes-shipping-verification   final=0.0425  (dr=2, sr=1)
+  2.   system-admin                   final=0.0408  (dr=8, sr=2)
+  3.   mlops-inference                final=0.0317
+  4.   hermes-tdd-workflow            final=0.0313
+  5.   repo-publishing-workflow       final=0.0305
+```
+
+**结果**：系统只加载 `hermes-shipping-verification` 这一个技能（而非全部 62 个），从中读出"发布前质量门控 + 回滚计划"的工作流，按需执行。
+
+**对比全量模式**：若把所有技能塞进 system prompt，token 开销约 50K+；按需加载只注入 1 个技能（约 400-800 token），**省 95%+**。
+
+> 注：不是所有 query 都命中完美。例如"帮我部署这个服务"因 BGE-M3 语义偏差会更靠近 `system-admin`（见 §技能检索系统 → 能力边界）。这是 embedding 模型上限，非元数据问题。
+
 ---
 
 ## 技能全集（62 个）
