@@ -314,6 +314,37 @@ git remote set-url origin "https://github.com/dandanlan8090/hermes-micro-framewo
 
 ### 架构
 
+```mermaid
+flowchart TD
+    Q["用户 Query"] --> D["稠密通道 · 云端"]
+    Q --> S["稀疏通道 · 本地"]
+
+    subgraph DENSE["稠密 (SiliconFlow BGE-M3 · 1024d)"]
+        D --> DT["PROSE_DOC_TEMPLATE<br/>{name}：{leading}。{desc}。触发：{branches}。"]
+        DT --> DC["Chroma HNSW cosine<br/>召回 top-16"]
+        DC --> DR["dense_rank"]
+    end
+
+    subgraph SPARSE["稀疏 (sparse.py · 纯 Python · IDF 增强)"]
+        S --> ST["trigger_tags + desc 中文短语(≥2字)<br/>→ TF-IDF 权重"]
+        ST --> SL["leading word 命中 ×2 boost<br/>（英文 desc 隔离）"]
+        SL --> SR["sparse_rank"]
+    end
+
+    DR --> R["RRF 融合 (RRF_K=60)"]
+    SR --> R
+    R --> RF["final = 1/(60+dense_rank)<br/>+ 1/(60+sparse_rank)<br/>+ (trigger命中 ? +0.010 : 0)"]
+    RF --> F["disable 过滤<br/>disable in query 子串匹配"]
+    F --> T["top-5 候选技能"]
+
+    style DENSE fill:#e3f2fd,stroke:#1976d2
+    style SPARSE fill:#e8f5e9,stroke:#388e3c
+    style R fill:#fff3e0,stroke:#f57c00
+    style T fill:#fce4ec,stroke:#c2185b
+```
+
+文字版（与图对应）：
+
 ```
 query
   │
