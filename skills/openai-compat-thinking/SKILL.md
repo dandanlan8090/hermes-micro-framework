@@ -31,7 +31,6 @@ metadata:
     related_skills:
     - hermes-agent
     - ai-conv-style-discipline
-platforms: ['linux', 'macos', 'windows']
 ---
 
 # OpenAI-compat thinking — Hermes-side routing

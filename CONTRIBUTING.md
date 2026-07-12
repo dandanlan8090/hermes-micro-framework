@@ -55,7 +55,7 @@ git checkout -b feat/your-change
 # 3. 本地修改（SOUL.md / skills / vdb / README 等）
 
 # 4. 脱敏检查（详见下方「脱敏红线」）
-grep -rnE "/home/[a-z]+|fnubuntu|dandanlan|Hermes-fn" \
+grep -rnE "/home/[a-z]+|[HOSTNAME]|dandanlan|Hermes" \
   --include="*.md" --include="*.py" --include="*.sh" . | grep -v ".git/" || echo "CLEAN"
 
 # 5. 技能合规验证（如改了 skills/）
@@ -227,15 +227,15 @@ metadata:
 | 禁止 | 说明 |
 |------|------|
 | `/home/<username>` 等个人路径 | 用 `~` 替代 |
-| 主机名（如 `fnubuntu`） | 用 `[HOSTNAME]` 替代 |
-| 内部代号（如 `Hermes-fn`） | 用 `Hermes` 替代 |
+| 主机名（如 `[HOSTNAME]`） | 用 `[HOSTNAME]` 替代 |
+| 内部代号（如 `Hermes`） | 用 `Hermes` 替代 |
 | GitHub 用户名（非仓库 owner） | 用 `YOUR_USERNAME` 替代 |
 | Token / API Key | 绝不入库（`.env` 不入库） |
 | `MEMORY.md` / 个人记忆 | 不发布 |
 
 快速自检：
 ```bash
-grep -rnE "/home/[a-z]+|fnubuntu|dandanlan|Hermes-fn|ghp_|sk-[A-Za-z0-9]{20}" \
+grep -rnE "/home/[a-z]+|[HOSTNAME]|dandanlan|Hermes|ghp_|sk-[A-Za-z0-9]{20}" \
   --include="*.md" --include="*.py" --include="*.sh" . | grep -v ".git/" || echo "CLEAN"
 ```
 

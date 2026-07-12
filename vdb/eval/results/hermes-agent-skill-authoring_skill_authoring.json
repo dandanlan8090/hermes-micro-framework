@@ -1,0 +1,33 @@
+{
+  "skill": "hermes-agent-skill-authoring",
+  "cases": [
+    {
+      "name": "description-leading-word",
+      "bar": "agent 引用了 leading word 概念；给出 description 三段式（前 leading word / 中核心动作 / 后分支）；触发 NEW_SKILL_TEMPLATE.md 的检查清单",
+      "artifacts": [
+        {
+          "run": 1,
+          "artifact": "[ERROR] usage: hermes [-h] [--version] [-z PROMPT] [--usage-file PATH] [-m MODEL]\n              [--provider PROVIDER] [-t TOOLSETS] [--resume SESSION]\n              [--continue [SESSION_NAME]] [--worktree] [--accept-hooks]\n              [--skills SKILLS] [--yolo] [--pass-session-id]\n              [--ignore-user-config] [--ignore-rules] [--safe-mode] [--tui]\n              [--cli] [--dev]\n              {chat,model,moa,fallback,secrets,migrate,gateway,proxy,lsp,setup,postinstall,whatsapp,whatsapp-cloud,sla"
+        }
+      ],
+      "verdict": {
+        "verdict": "",
+        "error": "usage: hermes [-h] [--version] [-z PROMPT] [--usage-file PATH] [-m MODEL]\n              [--provider PROVIDER] [-t TOOLSETS] [--resume SESSION]\n              [--continue [SESSION_NAME]] [--worktree] [--accept-hooks]\n              [--skills SKILLS] [--yolo] [--pass-session-id]\n              [--ignore-user-config] [--ignore-rules] [--safe-mode] [--tui]\n              [--cli] [--dev]\n              {chat,model,moa,fallback,secrets,migrate,gateway,proxy,lsp,setup,postinstall,whatsapp,whatsapp-cloud,sla"
+      }
+    },
+    {
+      "name": "skill-md-failure-modes",
+      "bar": "agent 引用 9 个 failure modes 中的 2-3 个（如 war story / implementation index / sprawl）；给出具体简化动作（推 references/ 删例子等）",
+      "artifacts": [
+        {
+          "run": 1,
+          "artifact": "[ERROR] usage: hermes [-h] [--version] [-z PROMPT] [--usage-file PATH] [-m MODEL]\n              [--provider PROVIDER] [-t TOOLSETS] [--resume SESSION]\n              [--continue [SESSION_NAME]] [--worktree] [--accept-hooks]\n              [--skills SKILLS] [--yolo] [--pass-session-id]\n              [--ignore-user-config] [--ignore-rules] [--safe-mode] [--tui]\n              [--cli] [--dev]\n              {chat,model,moa,fallback,secrets,migrate,gateway,proxy,lsp,setup,postinstall,whatsapp,whatsapp-cloud,sla"
+        }
+      ],
+      "verdict": {
+        "verdict": "",
+        "error": "usage: hermes [-h] [--version] [-z PROMPT] [--usage-file PATH] [-m MODEL]\n              [--provider PROVIDER] [-t TOOLSETS] [--resume SESSION]\n              [--continue [SESSION_NAME]] [--worktree] [--accept-hooks]\n              [--skills SKILLS] [--yolo] [--pass-session-id]\n              [--ignore-user-config] [--ignore-rules] [--safe-mode] [--tui]\n              [--cli] [--dev]\n              {chat,model,moa,fallback,secrets,migrate,gateway,proxy,lsp,setup,postinstall,whatsapp,whatsapp-cloud,sla"
+      }
+    }
+  ]
+}

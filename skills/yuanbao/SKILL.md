@@ -23,8 +23,6 @@ metadata:
       - network_request
       - read_only
     related_skills: []
-author: Hermes Agent
-license: MIT
 ---
 # Yuanbao Group Interaction
 

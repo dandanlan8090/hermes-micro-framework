@@ -31,7 +31,6 @@ metadata:
     - ascii-video
     - p5js
     - heartmula
-platforms: ['linux', 'macos', 'windows']
 ---
 # Media Creation & Audio — Class-Level Guidance
 

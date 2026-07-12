@@ -28,7 +28,6 @@ metadata:
       - 交易
       - 下单
       - 开仓
-license: MIT
 ---
 # Polymarket — Prediction Market Data
 

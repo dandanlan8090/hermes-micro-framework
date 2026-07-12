@@ -22,8 +22,6 @@ metadata:
       - cli_only
       - read_only
     related_skills: []
-author: Hermes Agent
-license: MIT
 ---
 # Dogfood: Systematic Web Application QA Testing
 

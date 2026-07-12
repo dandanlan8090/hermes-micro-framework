@@ -1,0 +1,9 @@
+{
+  "last_report_path": "/home/lan/.hermes/logs/curator/20260712-033636",
+  "last_run_at": "2026-07-12T03:36:36.956929+00:00",
+  "last_run_duration_seconds": 666.261876,
+  "last_run_summary": "auto: no changes; llm: All changes verified and intact. Here is the summary.\n\n## Human summary\n\nI ran an umbrella-building consolidation pass over the 29 agent-created candidates. Three clusters were absorbed into class-level umbrellas:\n\n1. **`hermes-boundary-rul…\narchived 3 skill(s):\n  • hermes-boundary-rules → hermes-framework\n  • mlops-evaluation → mlops\n  • mlops-inference → mlops\nfull report: hermes curator status\nkeep an umbrella stable: hermes curator pin hermes-framework",
+  "last_run_summary_shown_at": "2026-07-09T02:26:16.551087+00:00",
+  "paused": false,
+  "run_count": 12
+}

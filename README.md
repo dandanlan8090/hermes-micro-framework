@@ -5,8 +5,9 @@
 本仓库提供一套**微内核架构**的 Hermes 配置方案：SOUL.md 仅保留不可撼动的铁律和路由表，所有方法论、工作流、约束细则全部分布在独立 skill 中，通过 vdb 按需加载。
 
 **核心分界（成熟 Agent 框架标准做法）**：
-- **代码 + 元数据入库**：`vdb/*.py`、`scripts/*`、`skills/**`（62 个技能的全部 frontmatter 是框架元数据资产）
+- **代码 + 元数据入库**：`vdb/*.py`、`scripts/*`、`skills/**`（66 个技能的全部 frontmatter 是框架元数据资产）
 - **索引 + 运行时状态本地生成**：Chroma 向量索引、`.venv`、`.env` 由 `install.sh` 在用户机器上就地重建，不入库
+- **框架认知资产入库**：`FRAMEWORK_EVOLUTION.md`、`USER.md` 模板随仓库跟踪；`MEMORY.md`（个人记忆）保持本地，不入库
 
 ---
 
@@ -16,6 +17,24 @@
 - **benchmark 稳定**：正式集 61 条 T1=88.3%/T3=91.7%；harder 集 17 条 T1=70.6%/T3=94.1%
 - **元数据层达标**：62 个技能全部 trigger ≥ 7、disable ≥ 2
 - **能力边界确认**：剩余失败 case 100% 为 BGE-M3 dense 语义偏差，非元数据可解（换 embedding 模型或 dense 侧 fine-tune 才能突破）
+
+---
+
+## v1.1 新增：上下文分类治理（SpanKind 迁移）
+
+> 跨项目借鉴方法论的范例：从 GitHub trending 项目 `dcg`（Destructive Command Guard）的 **SpanKind 命令上下文分类**范式，上移到 Agent 长对话治理。
+
+- **用途**：长对话中 75–85% token 是工具原始输出（Data），仅 10–20% 是执行上下文（Executed）。按语义分类后，Data 类可安全压缩，Executed 类 100% 保留。
+- **新增资产**：
+  - `skills/infrastructure/hermes-context-compression/SKILL.md` — 触发词：token 太多 / 上下文太长 / 压缩对话 / 历史检索全是工具输出 / 会话卡顿 / 长 session 管理
+  - `scripts/context-processor.py` — 规则分类最近 N 条消息（`role=tool`→DATA，`assistant+tool_calls`→EXECUTED）
+  - `scripts/init-context-tables.sql` — 建 `message_tags.db` 私有 side table（不侵入 Hermes 核心）
+  - `vdb-autoload.py --process-context` — `--auto` 模式自动触发分类
+- **真实验证**（state.db 两个长 session）：Data 占 75.5%/85.4% token；分类压缩省 74.1%/83.0%；历史检索命中执行决策率 FTS 50% → 分类优先 100%；执行上下文保留 100%。
+- **设计原则**（通用纪律，固化于 FRAMEWORK_EVOLUTION.md）：
+  1. 分析外部项目重其**架构/钩子关系**而非功能清单；借用的理念须用**真实数据验证**而非空谈。
+  2. 向量/语义检索天花板内不靠置信度加权/分数微调抢救失败 case；正确方向是「进检索前的路由/分层」。
+  3. 落地实现优先私有侧扩展（side table / 调用侧 `role_filter`），**不侵入核心代码**，符合 hermes-agent 核心窄腰约束。
 
 ---
 
@@ -45,9 +64,11 @@ hermes-micro-framework/
 │
 ├── scripts/
 │   ├── init-vdb.sh            # .venv + pip + build_index
-│   └── vdb-autoload.py        # 预热 + 索引过期检测 + 自动重建
+│   ├── vdb-autoload.py        # 预热 + 索引过期检测 + 自动重建 + --process-context
+│   ├── context-processor.py   # SpanKind 上下文分类（EXECUTED/DATA/ARGUMENT）
+│   └── init-context-tables.sql# message_tags.db 建表
 │
-└── skills/                    # 元数据资产（62 技能，全量同步）
+└── skills/                    # 元数据资产（66 技能，全量同步）
     ├── core/ workflow/ methodology/ infrastructure/ integration/  # 框架核心技能
     ├── media/ research/ mlops/ smart-home/ social-media/ email/   # 外部吸收的领域技能
     ├── apple/ data-science/ ...                                    # 平台/工具技能
@@ -326,7 +347,7 @@ cd hermes-micro-framework
 # 2. 修改内容（SOUL.md / skills / README 等）
 
 # 3. 脱敏检查
-grep -rnE "/home/[a-z]+|fnubuntu|dandanlan|Hermes-fn" \
+grep -rnE "/home/[a-z]+|[HOSTNAME]|dandanlan|Hermes" \
   --include="*.md" --include="*.py" --include="*.sh" . | grep -v ".git/" || echo "CLEAN"
 
 # 4. 技能合规验证（trigger ≥ 7, disable ≥ 2）

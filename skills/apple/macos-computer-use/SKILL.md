@@ -31,8 +31,6 @@ metadata:
     category: desktop
     related_skills:
     - browser
-author: Hermes Agent
-license: MIT
 ---
 # macOS Computer Use (universal, any-model)
 

@@ -36,10 +36,6 @@ metadata:
       - 回复
       - 点赞
       - 写操作
-version: 1.0.0
-author: Hermes Agent
-license: MIT
-platforms: ['linux', 'macos', 'windows']
 ---
 # Agent Reach — internet capability router
 

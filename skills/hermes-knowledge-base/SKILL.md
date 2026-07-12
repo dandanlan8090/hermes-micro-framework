@@ -55,6 +55,28 @@ metadata:
 - 图片/附件放在同目录 assets/ 下
 - 索引文件（README.md）列出所有主题
 
+## 团队知识库设计原则（老黎 2026-07-11 指引）
+
+仅当知识库面向多人/多设备共享时才适用本段。硬性约束：
+
+1. **环境&时效**：每条知识带 `verified_on` 与失效条件（如「lark-cli 升级后须重验」），过期即成误导。
+2. **适配性**：同一结论在不同环境（ARM 电视盒 vs x86 VM vs 飞书国内端点）可能不成立。
+3. **真实性**：来源可溯、可重验，不编造「看起来对」的内容。
+4. **正确性**：经实测或官方文档佐证，非脑补。
+
+**设备专属性陷阱**：部分知识仅限特定设备/环境通用，**不可盲目泛化**。每条知识必须标注来源范围（provenance / scope），例如「仅适用于 cm211 电视盒 + 局域网」。
+
+**勿过早过度工程化**：框架未成熟前（如 Agent 仍处于起步期），不要做离线镜像兜底、自动同步层等冗余结构。先把「标 scope + 标时效」落到实体，再谈统一。
+
+## 读取飞书（Lark）托管的文档
+
+知识库常托管在飞书 Wiki，读取时：
+
+- `feishu_doc_read` 工具**仅在飞书评论上下文可用**；普通会话调用会返回 `Feishu client not available (not in a Feishu comment context)`。
+- 替代方案（已验证可用）：`lark-cli docs +fetch --doc <token> --format json`，从返回 JSON 的 `data.document.content` 取正文（HTML/XML 片段）。
+- 列知识库节点：`lark-cli wiki +space-list --as user` → `lark-cli wiki +node-list --space-id <id> [--parent-node-token <tok>]`。
+- 注意：本机命令是 `lark-cli`（包 `@larksuite/cli`），**不是** `larksuite`；认证用 `config bind --source hermes --identity user-default`，不要用 `config init`（会被拒，说会创建并行 app）。
+
 ## 适配要求
 
 - Git：文本文件，无二进制大文件

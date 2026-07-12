@@ -36,8 +36,6 @@ metadata:
     category: desktop
     related_skills:
     - browser
-author: Hermes Agent
-license: MIT
 ---
 # Computer Use (universal, any-model, cross-platform)
 

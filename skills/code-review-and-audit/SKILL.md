@@ -33,7 +33,6 @@ metadata:
     - doubt-driven-development
     skill_type: methodology
     priority: high
-platforms: ['linux', 'macos', 'windows']
 ---
 # Code Review & Audit — Class-Level Guidance
 

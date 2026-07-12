@@ -20,9 +20,6 @@ metadata:
       disable:
       - 直播
       - 下载视频
-version: 1.0.0
-author: Hermes Agent
-license: MIT
 ---
 # YouTube Content Tool
 

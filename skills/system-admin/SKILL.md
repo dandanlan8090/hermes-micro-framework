@@ -272,13 +272,45 @@ echo "半配置包数: $(dpkg -l | grep -cE '^.[ih][FU]')"
 
 ## Appendix B. Mihomo TUN Transparent-Gateway
 
-Re-homed from the `mihomo-tun-gateway` skill. Deploy a Mihomo (Clash-compatible) TUN-mode side-router gateway on Debian/Ubuntu/Armian (x86_64) so other LAN hosts route traffic through this machine as the gateway.
+Re-homed from the `mihomo-tun-gateway` skill. Deploy a Mihomo (Clash-compatible) TUN-mode gateway on Debian/Ubuntu/Armbian (**x86_64 AND ARM64/aarch64**). Two topologies:
+- **LAN side-router**: other LAN hosts route through this host as gateway (set their gateway/DNS to this host).
+- **Single-host transparent proxy**: only this machine's own traffic goes through TUN (no other hosts route via it). Config is identical — only the external routing differs. The bundle in `references/mihomo-arm64-singlehost-deploy.md` covers the single-host case and works for side-router too.
 
-**Use when**: this host is the LAN egress and you want LAN-wide proxy without an OpenWrt soft-router; split traffic so domestic IPs go direct and foreign traffic goes via proxy nodes.
+**Use when**: you want system-wide proxy without per-app config; split so domestic IPs go DIRECT and foreign traffic goes via proxy nodes (GEOSITE/geoip CN → DIRECT, MATCH → Proxy).
 
 **Key pieces**:
-- Install + systemd unit for `mihomo` in TUN mode (bind to LAN interface).
+- Install + systemd unit for `mihomo` in TUN mode.
+- `references/mihomo-arm64-singlehost-deploy.md` — known-good ARM64 single-host bundle (desensitized config + systemd unit + install script + SSH-pubkey + health-check).
 - `references/mihomo-tun-gateway/post-deploy-audit.md` — post-deploy connectivity/leak audit checklist.
 - `scripts/mihomo-tun-gateway/mihomo-quic-drop.sh` — drop QUIC (force TCP so proxy rules apply).
 
+**Cross-arch (ARM64 / CM4 / Orange Pi / RPi)**:
+- Never reuse an amd64 binary on an ARM host. Check `uname -m` on target (`aarch64` = ARM64).
+- Fetch the matching release asset: `mihomo-linux-arm64-<ver>.deb` (or `.gz` raw binary). Latest tag via `curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | grep tag_name`.
+- The `.deb` installs `/usr/bin/mihomo`; the custom unit adds `CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW` (TUN device + binding ports 53/9090). Run `mihomo -t -d /etc/mihomo` to validate config before `enable`.
+
+**SSH pubkey distribution pitfall (long keys wrap in narrow terminals)**:
+- An 82-char ed25519 key wider than the terminal wraps to a new line → `>>` and key split → `syntax error` / `chmod: missing operand` / `Permission denied`. Copy-paste of long keys is unsafe.
+- Fix: serve from source host (`cd /tmp/ks && cp ~/.ssh/id_ed25519.pub k && python3 -m http.server 8088`), then on target `mkdir -p ~/.ssh && chmod 700 ~/.ssh && curl -fsS <SRC_IP>:8088/k >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`. The curl line stays <60 chars — no wrapping.
+- **Do NOT `sudo -i` before appending a login user's `authorized_keys`** — `$HOME` switches to `/root`, so the key lands in `/root/.ssh/` not `/home/<user>/.ssh/`. Append as the login user; `sudo` only the `mkdir`/`chmod` if perms require, keeping the redirect under the user's own home.
+
+**SBC multi-NIC pitfall**:
+- SBCs like CM4 often expose wireless + wired on the same subnet. A wireless IP flaps and is the wrong always-on gateway target. Confirm the wired IP with the user before deploying if the host shows >1 interface.
+
 **Rules**: requires `iptables`/nftables + TUN kernel module; lock down to the intended LAN subnet; always run the post-deploy audit to confirm no DNS/leak.
+
+## Appendix C. Identifying an Installed Binary's True Origin
+
+When asked "which repo is this tool from?" — e.g. resolving the `mihomo` naming confusion
+(`MetaCubeX/mihomo` URL returned an unrelated Python game library; Clash.Meta core vs
+ClashX.Meta macOS GUI vs clash-verge-rev desktop GUI). Full procedure + ecosystem
+disambiguation in `references/identify-package-origin.md`.
+
+**Core rule**: trust host-side `dpkg -s` metadata + `strings <bin> | grep github.com/<org>`
+over a fresh GitHub URL lookup. A repo URL in package metadata can later point to a
+*different* project if upstream renamed/redirected and the old name was reused. Verify
+identity from the binary itself; treat web URLs as secondary hints only.
+
+**Workflow rule (user-mandated 2026-07-12)**: for any "which repo / what is this project?"
+question, fetch real data (GitHub API or host-side) and cite it — never answer from memory
+of what a repo "used to be". User explicitly required live verification before answering.

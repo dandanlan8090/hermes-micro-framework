@@ -65,6 +65,8 @@ metadata:
 - 删除所有真实 IP、域名、密钥、密码、token
 - 删除内网路径和用户名
 - 删除业务敏感信息
+- **真实运行凭据不得进入 repo**：代理节点密码/UUID、SS/Trojan/VLESS URI、mihomo/Xray 完整 config、证书私钥/指纹、SSH 端口等一律只保留在运行环境，公开材料只能用占位符
+- **泄露补救顺序**：一旦真实凭据进入 commit / PR / release / repo，先 rotate secret，再清理 git history / release / artifact；delete repo 或 archive repo 不能替代 rotate，因为 clone、fork、cache 和版本历史可能已扩散
 
 ## GitHub 推送前检查
 

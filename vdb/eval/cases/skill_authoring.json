@@ -1,0 +1,14 @@
+[
+  {
+    "name": "description-leading-word",
+    "input": "我写了个新 skill，description 该怎么写？",
+    "bar": "agent 引用了 leading word 概念；给出 description 三段式（前 leading word / 中核心动作 / 后分支）；触发 NEW_SKILL_TEMPLATE.md 的检查清单",
+    "smells": ["没提 leading word", "整段说教没结构", "例子是修复 patch 不是 smell"]
+  },
+  {
+    "name": "skill-md-failure-modes",
+    "input": "我的 skill 写得太长，怎么精简？",
+    "bar": "agent 引用 9 个 failure modes 中的 2-3 个（如 war story / implementation index / sprawl）；给出具体简化动作（推 references/ 删例子等）",
+    "smells": ["说'写得简洁点'没说具体动作", "没引用 failure modes 框架", "建议保留所有内容"]
+  }
+]
