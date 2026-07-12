@@ -20,7 +20,7 @@
 
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")")" && pwd)"
 HERMES_DIR="${HOME}/.hermes"
 IS_NEW=false
 FORCE=false
@@ -39,22 +39,12 @@ while [ $# -gt 0 ]; do
 done
 
 # ── Profile 检测 ────────────────────────────────────────────────────
+# 仅当显式传 --profile 时才切换到 profile 目录；不自动探测（避免无 hermes CLI 时报错）
 if [ -n "$PROFILE" ]; then
     HERMES_DIR="${HOME}/.hermes/profiles/${PROFILE}"
     echo "  [profile] 目标: $HERMES_DIR"
     export HERMES_SKILL_DIR="${HERMES_DIR}/skills"
     echo "  [profile] 已设 HERMES_SKILL_DIR=$HERMES_SKILL_DIR"
-elif command -v hermes &>/dev/null; then
-    ACTIVE_PROFILE=$(hermes profile list 2>/dev/null | grep '◆' | awk '{print $2}' | head -1)
-    if [ -n "$ACTIVE_PROFILE" ] && [ "$ACTIVE_PROFILE" != "default" ]; then
-        echo "=========================================="
-        echo " ⚠ 检测到当前活跃 profile: $ACTIVE_PROFILE"
-        echo " ⚠ 当前目标目录是 ~/.hermes/（全局），不是 $ACTIVE_PROFILE 的目录"
-        echo " ⚠ 如果要安装到 $ACTIVE_PROFILE，请用:"
-        echo "    bash install.sh --profile $ACTIVE_PROFILE"
-        echo "=========================================="
-        echo ""
-    fi
 fi
 
 if [ ! -d "$HERMES_DIR" ]; then
@@ -67,9 +57,9 @@ echo "=========================================="
 echo ""
 echo "  源目录: $REPO_DIR"
 echo "  目标目录: $HERMES_DIR"
-if $IS_NEW; then
+if [ "$IS_NEW" = true ]; then
     echo "  类型: 全新安装"
-elif $FORCE; then
+elif [ "$FORCE" = true ]; then
     echo "  类型: 强制覆盖"
 else
     echo "  类型: 存量更新（保留核心配置）"
@@ -79,7 +69,7 @@ echo ""
 # ── 函数: 复制 ───────────────────────────────────────────────────────
 do_cp() {
     local src="$1" dst="$2" label="$3"
-    if $DRY; then
+    if [ "$DRY" = true ]; then
         echo "  [DRY] cp -r $src $dst  ← $label"
         return
     fi
@@ -91,15 +81,15 @@ do_cp() {
 # ── 1. 核心配置（按新装/存量决定）─────────────────────────────────
 echo "── 第 1 步: 核心配置 ―――――――――――――――――――――――――――――――――――"
 
-if $IS_NEW || $FORCE; then
+if [ "$IS_NEW" = true ] || [ "$FORCE" = true ]; then
     do_cp "$REPO_DIR/SOUL.md"            "$HERMES_DIR/SOUL.md"                      "SOUL.md"
     do_cp "$REPO_DIR/memories/USER.md"   "$HERMES_DIR/memories/USER.md"             "memories/USER.md"
 else
-    echo "  ⚠ 检测到已有 ~/.hermes/ 目录（存量用户）"
+    echo "  ⚠ 检测到已有 $HERMES_DIR 目录（存量用户）"
     echo "  ⚠ SOUL.md / memories/USER.md 不会被自动覆盖"
     echo "  ⚠ 请手动对比后按需合并:"
-    echo "     diff -u ~/.hermes/SOUL.md  $REPO_DIR/SOUL.md"
-    echo "     diff -u ~/.hermes/memories/USER.md $REPO_DIR/memories/USER.md"
+    echo "     diff -u $HERMES_DIR/SOUL.md  $REPO_DIR/SOUL.md"
+    echo "     diff -u $HERMES_DIR/memories/USER.md $REPO_DIR/memories/USER.md"
     echo ""
 fi
 
@@ -114,28 +104,25 @@ fi
 echo ""
 
 # ── 3. 技能目录 ─────────────────────────────────────────────────────
-echo "── 第 3 步: 技能目录 ―――――――――――――――――――――――――――――――――――"
+echo "── 第 3 步: 技能目录 ―――――――――――――――――――――――――――――――――――"$REPO_DIR/skills" ] && echo Y || echo N)"
 if [ -d "$REPO_DIR/skills" ]; then
-    count_before=$(find "$HERMES_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
-    if $IS_NEW || $FORCE; then
+    count_before=$(find "$HERMES_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l || true)
+    if [ "$IS_NEW" = true ] || [ "$FORCE" = true ]; then
         do_cp "$REPO_DIR/skills/" "$HERMES_DIR/skills/" "skills/（全量）"
     else
-        # 遍历分类子目录（core/workflow/methodology/infrastructure/integration）
-        for cat_dir in "$REPO_DIR/skills"/*/; do
-            cat_name=$(basename "$cat_dir")
-            # 跳过 templates（作为单文件处理）
-            [ "$cat_name" = "templates" ] && continue
-            for skill_dir in "$cat_dir"*/; do
-                [ -d "$skill_dir" ] || continue
-                name=$(basename "$skill_dir")
-                target="$HERMES_DIR/skills/$name"
-                if [ ! -d "$target" ]; then
-                    do_cp "$skill_dir" "$target" "skills/$name（${cat_name}，新增）"
-                else
-                    echo "  - skills/$name 已存在，跳过"
-                fi
-            done
-        done
+        # 存量更新：遍历仓库内所有含 SKILL.md 的目录，新增的才复制
+        while IFS= read -r skill_md; do
+            skill_dir=$(dirname "$skill_md")
+            name=$(basename "$skill_dir")
+            # 跳过 templates 单文件（下方单独处理）
+            [ "$name" = "templates" ] && continue
+            target="$HERMES_DIR/skills/$name"
+            if [ ! -d "$target" ]; then
+                do_cp "$skill_dir" "$target" "skills/$name（新增）"
+            else
+                echo "  - skills/$name 已存在，跳过"
+            fi
+        done < <(find "$REPO_DIR/skills" -name SKILL.md -not -path "*/templates/*")
         # 处理 templates/ 下的单文件
         for f in "$REPO_DIR/skills/templates"/*.md; do
             [ -f "$f" ] || continue
@@ -148,7 +135,7 @@ if [ -d "$REPO_DIR/skills" ]; then
             fi
         done
     fi
-    count_after=$(find "$HERMES_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l)
+    count_after=$(find "$HERMES_DIR/skills" -name "SKILL.md" 2>/dev/null | wc -l || true)
     echo "  技能总数: $count_before → $count_after"
 fi
 echo ""
@@ -178,9 +165,9 @@ echo ""
 
 # ── 6. vdb 环境初始化 ──────────────────────────────────────────────
 echo "── 第 6 步: vdb 环境初始化 ――――――――――――――――――――――――――――――"
-if $DRY; then
+if [ "$DRY" = true ]; then
     echo "  [DRY] 跳过环境初始化"
-elif $IS_NEW || $FORCE; then
+elif [ "$IS_NEW" = true ] || [ "$FORCE" = true ]; then
     if [ -f "$HERMES_DIR/scripts/init-vdb.sh" ]; then
         if [ -n "$PROFILE" ]; then
             echo "  运行: bash $HERMES_DIR/scripts/init-vdb.sh --profile $PROFILE"
@@ -193,7 +180,7 @@ elif $IS_NEW || $FORCE; then
         echo "  ⚠ scripts/init-vdb.sh 未找到，跳过"
     fi
 else
-    echo "  检测到已有 ~/.hermes/vdb/.venv，跳过"
+    echo "  检测到已有 ~/.hermes/vdb/.venv，跳过初始化"
     if [ -n "$PROFILE" ]; then
         echo "  如需重建: bash $HERMES_DIR/scripts/init-vdb.sh --profile $PROFILE"
     else
@@ -202,9 +189,32 @@ else
 fi
 echo ""
 
+# ── 6.5 上下文分类库建表（新装/存量都执行，幂等）─────────────────
+echo "── 第 6.5 步: 上下文分类库建表 ―――――――――――――――――――――――――"
+CT_DB="$HERMES_DIR/scripts/message_tags.db"
+if [ -f "$REPO_DIR/scripts/init-context-tables.sql" ]; then
+    if [ "$DRY" = true ]; then
+        echo "  [DRY] sqlite3 $CT_DB < $REPO_DIR/scripts/init-context-tables.sql"
+    elif [ ! -f "$CT_DB" ]; then
+        if command -v sqlite3 &>/dev/null; then
+            mkdir -p "$(dirname "$CT_DB")"
+            sqlite3 "$CT_DB" < "$REPO_DIR/scripts/init-context-tables.sql"
+            echo "  ✓ message_tags.db 已建表（SpanKind 上下文分类）"
+        else
+            echo "  ⚠ sqlite3 未找到，请手动建表:"
+            echo "    sqlite3 $CT_DB < $REPO_DIR/scripts/init-context-tables.sql"
+        fi
+    else
+        echo "  ✓ message_tags.db 已存在，跳过"
+    fi
+else
+    echo "  ⚠ init-context-tables.sql 未找到，跳过"
+fi
+echo ""
+
 # ── 7. vdb 预热 + 索引检测 ──────────────────────────────────────────
 echo "── 第 7 步: vdb 预热 + 索引检测 ―――――――――――――――――――――――――――"
-if $DRY; then
+if [ "$DRY" = true ]; then
     echo "  [DRY] 跳过 vdb 预热"
 else
     PYTHON=""
@@ -223,16 +233,21 @@ echo ""
 
 # ── 完成 ────────────────────────────────────────────────────────────
 echo "=========================================="
-if $DRY; then
+if [ "$DRY" = true ]; then
     echo " DRY RUN 完成 — 未执行任何实际变更"
 else
     echo " 安装完成"
     echo ""
     echo " 下一步:"
-    if $IS_NEW; then
+    if [ "$IS_NEW" = true ]; then
         echo "   1. 编辑 $HERMES_DIR/.env 填入 SILICONFLOW_API_KEY"
-        echo "   2. 重启 Hermes 会话"
-        echo "   3. 运行 'hermes chat' 验证"
+        echo "   2. 运行: bash $HERMES_DIR/scripts/init-vdb.sh   # 建 venv + 索引 + 上下文分类库"
+        echo "   3. 重启 Hermes 会话"
+        echo "   4. 'hermes chat' 验证"
+        echo ""
+        echo " 启用上下文分类 (SpanKind 长对话压缩):"
+        echo "   python3 $HERMES_DIR/scripts/vdb-autoload.py --process-context"
+        echo "   # 已自动接入 --auto 模式, 每次索引重建后自动分类最近消息"
         echo ""
         echo " 多 profile 用户:"
         if [ -n "$PROFILE" ]; then
@@ -247,6 +262,8 @@ else
     else
         echo "   1. 手动合并 SOUL.md / USER.md（见上方提示）"
         echo "   2. 重启 Hermes 会话"
+        echo "   3. 上下文分类库已就绪: $HERMES_DIR/scripts/message_tags.db"
+        echo "      启用: python3 $HERMES_DIR/scripts/vdb-autoload.py --process-context"
     fi
 fi
 echo "=========================================="

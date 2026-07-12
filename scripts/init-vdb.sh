@@ -75,8 +75,29 @@ cd "$VDB_DST"
 PYTHONPATH="$PWD" python3 "${HERMES_DIR}/scripts/vdb-autoload.py" --auto
 echo ""
 
+echo "==> 6. 初始化上下文分类库 (context-processor)"
+CT_DB="${HERMES_DIR}/scripts/message_tags.db"
+if [ -f "${HERMES_DIR}/scripts/init-context-tables.sql" ]; then
+    if [ ! -f "$CT_DB" ]; then
+        if command -v sqlite3 &>/dev/null; then
+            sqlite3 "$CT_DB" < "${HERMES_DIR}/scripts/init-context-tables.sql"
+            echo "  ✓ message_tags.db 已建表 (SpanKind 上下文分类)"
+        else
+            echo "  ⚠ sqlite3 未找到，跳过建表"
+            echo "    手动建表: sqlite3 $CT_DB < ${HERMES_DIR}/scripts/init-context-tables.sql"
+        fi
+    else
+        echo "  ✓ message_tags.db 已存在，跳过"
+    fi
+else
+    echo "  ⚠ init-context-tables.sql 未找到，跳过"
+fi
+echo ""
+
 echo "=========================================="
 echo " ✅ vdb 初始化完成"
 echo "    chroma/ 目录已创建（向量存储）"
+echo "    message_tags.db 已建表（上下文分类）"
 echo "    重启 Hermes 会话即可自动使用 vdb 检索"
+echo "    启用上下文分类: python3 ${HERMES_DIR}/scripts/vdb-autoload.py --process-context"
 echo "=========================================="
